@@ -132,6 +132,15 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
 .field select, .field input { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 6px 8px; width: 100%; }
 .field small { color: var(--muted); font-size: 12px; }
 .check { display: flex; gap: 8px; align-items: center; }
+.editor { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 20px; width: min(560px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; }
+.editor::backdrop { background: rgba(8, 18, 14, .5); }
+.editor form { display: grid; gap: 16px; }
+.editor h2 { font: 600 24px/1.1 var(--f-display); margin: 0; }
+.ed-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.ed-fields input, textarea { font-size: 16px; }
+.ed-err { color: var(--bad); margin: 0; font-size: 14px; }
+.btn.danger { color: var(--bad); margin-left: auto; }
+[hidden] { display: none !important; }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 6px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; }
 .toast.show { opacity: 1; }
 </style>
@@ -143,6 +152,7 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
     <div class="file">
       <label class="btn primary filebtn" for="fileInput">Load spreadsheet
         <input type="file" id="fileInput" class="vh" accept=".csv,.xlsx,.xls,.tsv,.txt,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
+      <button class="btn" data-act="add">+ Add contact</button>
       <span class="file-name" id="fileName"></span>
     </div>
     <div class="stats" id="stats"></div>
@@ -199,11 +209,25 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
       <div class="nav">
         <button class="btn" id="exportBtn">Export results (.csv)</button>
         <button class="btn ghost" id="resetBtn">Clear all outcomes</button>
+        <button class="btn ghost" id="blankBtn">Start a new blank list</button>
       </div>
-      <p class="notice" style="margin:0">Keyboard: <b>C</b> call · <b>1–7</b> log outcome · <b>N</b> skip · <b>B</b> back · <b>P</b> pause countdown. Shortcuts are off while you type notes. Progress is saved in this browser automatically.</p>
+      <p class="notice" style="margin:0">Keyboard: <b>C</b> call · <b>1–7</b> log outcome · <b>N</b> skip · <b>B</b> back · <b>P</b> pause countdown · <b>E</b> edit contact · <b>A</b> add contact. Shortcuts are off while you type notes. Progress is saved in this browser automatically.</p>
     </div>
   </details>
 </div>
+<dialog class="editor" id="editor" aria-labelledby="edTitle">
+  <form id="editForm" novalidate>
+    <h2 id="edTitle">Add contact</h2>
+    <div class="ed-fields" id="edFields"></div>
+    <p class="ed-err" id="edErr" role="alert" hidden></p>
+    <label class="check" id="edFrontWrap"><input type="checkbox" id="edFront"> Call this contact next</label>
+    <div class="nav">
+      <button type="submit" class="btn primary" id="edSave">Save</button>
+      <button type="button" class="btn" data-act="edCancel">Cancel</button>
+      <button type="button" class="btn ghost danger" id="edDelete">Delete contact</button>
+    </div>
+  </form>
+</dialog>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -325,7 +349,7 @@ function load(headers, rows, file, sample) {
   validate();
   S.cur = nextPending(-1);
   stopTimer(); save(); renderAll();
-  if (!sample) toast(`Loaded ${rows.length} contacts from ${file}`);
+  if (!sample && rows.length) toast(`Loaded ${rows.length} contacts from ${file}`);
   if (S.map.phone < 0) $('settings').open = true;
 }
 function validate() {
@@ -429,6 +453,81 @@ function exportCSV() {
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
 
+/* ---------- adding & editing contacts ---------- */
+const BLANK_HEADERS = ['Name', 'Company', 'Phone', 'Email'];
+let editing = -1, delArmed = false, blankArmed = false;
+
+function startBlank() {
+  load(BLANK_HEADERS.slice(), [], 'My contacts', false);
+}
+function newBlankList() {
+  const b = $('blankBtn');
+  if (S.rows.length && !S.sample && !blankArmed) {
+    blankArmed = true; b.textContent = 'Click again to replace your current list';
+    setTimeout(() => { blankArmed = false; b.textContent = 'Start a new blank list'; }, 4000);
+    return;
+  }
+  blankArmed = false; b.textContent = 'Start a new blank list';
+  startBlank(); toast('Started a new blank list');
+}
+function editorOrder() {
+  const roles = ['name', 'first', 'last', 'phone', 'company'].map(k => S.map[k]).filter(c => c >= 0);
+  const first = [...new Set(roles)];
+  return [...first, ...S.headers.map((_, c) => c).filter(c => !first.includes(c))];
+}
+function openEditor(i) {
+  stopTimer();
+  if (S.cur >= 0 && $('notes')) S.res[S.cur].notes = $('notes').value.trim();
+  if (i < 0 && S.sample) { startBlank(); toast('Replaced the sample list with your own list'); }
+  if (i < 0 && !S.headers.length) startBlank();
+  editing = i;
+  const vals = i >= 0 ? S.rows[i] : S.headers.map(() => '');
+  $('edFields').innerHTML = editorOrder().map(c => {
+    const isPhone = c === S.map.phone, isEmail = /e-?mail/i.test(S.headers[c]);
+    const type = isPhone ? 'type="tel" inputmode="tel" autocomplete="off"' : isEmail ? 'type="email" autocapitalize="off"' : 'type="text"';
+    return `<label class="field"><span class="label">${esc(S.headers[c])}${isPhone ? ' (required)' : ''}</span>
+      <input id="ed-${c}" data-c="${c}" ${type} value="${esc(vals[c])}"></label>`;
+  }).join('');
+  $('edTitle').textContent = i < 0 ? 'Add contact' : 'Edit contact';
+  $('edSave').textContent = i < 0 ? 'Add to list' : 'Save changes';
+  $('edDelete').hidden = i < 0;
+  $('edDelete').textContent = 'Delete contact'; delArmed = false;
+  $('edFrontWrap').hidden = i >= 0; $('edFront').checked = false;
+  $('edErr').hidden = true;
+  $('editor').showModal();
+  $('edFields').querySelector('input')?.focus();
+}
+function saveEditor(e) {
+  e.preventDefault();
+  const vals = S.headers.map((_, c) => ($('ed-' + c)?.value || '').trim());
+  const err = msg => { $('edErr').textContent = msg; $('edErr').hidden = false; };
+  if (!vals.some(Boolean)) return err('Fill in at least a name and phone number.');
+  if (S.map.phone < 0) return err('Pick a phone number column under Columns & dialing settings first.');
+  if (!norm(vals[S.map.phone])) return err('Enter a full phone number, including the area code.');
+  let idx = editing;
+  if (idx < 0) {
+    S.rows.push(vals);
+    S.res.push({ status: 'pending', notes: '', at: '', attempts: 0 });
+    idx = S.rows.length - 1;
+  } else S.rows[idx] = vals;
+  validate();
+  if (S.res[idx].status === 'pending' && (S.cur < 0 || (editing < 0 && $('edFront').checked && !S.oncall))) S.cur = idx;
+  save(); $('editor').close(); renderAll();
+  toast(S.res[idx].status === 'duplicate'
+    ? `${nameOf(idx)} has the same number as another contact, so it's marked Duplicate`
+    : editing < 0 ? `Added ${nameOf(idx)}` : `Saved ${nameOf(idx)}`);
+}
+function deleteContact() {
+  const i = editing; if (i < 0) return;
+  if (!delArmed) { delArmed = true; $('edDelete').textContent = 'Tap again to delete'; return; }
+  const name = nameOf(i);
+  S.rows.splice(i, 1); S.res.splice(i, 1);
+  if (S.cur === i) { S.oncall = false; S.cur = S.rows.length ? nextPending(i - 1) : -1; }
+  else if (S.cur > i) S.cur--;
+  validate(); save(); $('editor').close(); renderAll();
+  toast(`Deleted ${name}`);
+}
+
 /* ---------- rendering ---------- */
 const statusLabel = s => OC[s]?.label || META[s]?.[0] || s;
 const statusTone = s => OC[s]?.tone || META[s]?.[1] || '';
@@ -462,6 +561,12 @@ function renderNotices() {
 }
 function renderWork() {
   const w = $('work');
+  if (!S.rows.length) {
+    w.innerHTML = `<div class="done"><span class="label">Empty list</span><h2>No contacts yet</h2>
+      <p style="margin:0;color:var(--muted)">Add contacts one at a time, or load a spreadsheet.</p>
+      <div class="nav"><button class="btn primary" data-act="add">+ Add contact</button></div></div>`;
+    return;
+  }
   if (S.cur < 0) {
     const anyRetry = S.res.some(r => RETRY.has(r.status));
     w.innerHTML = `<div class="done"><span class="label">List complete</span><h2>Everyone in the queue has been called</h2>
@@ -495,6 +600,7 @@ function renderWork() {
     <div class="nav">
       <button class="btn" data-act="back">← Back</button>
       <button class="btn" data-act="skip">Skip for now</button>
+      <button class="btn ghost" data-act="edit" style="margin-left:auto">Edit contact</button>
     </div>
     ${extra.length ? `<div style="display:grid;gap:6px"><span class="label">From your spreadsheet</span><dl class="details">${extra.map(([h, v]) => `<dt>${esc(h)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>` : ''}
   </div>`;
@@ -541,6 +647,9 @@ document.addEventListener('click', e => {
   else if (act === 'pause') pause();
   else if (act === 'export') exportCSV();
   else if (act === 'requeue') requeue();
+  else if (act === 'add') openEditor(-1);
+  else if (act === 'edit') openEditor(S.cur);
+  else if (act === 'edCancel') $('editor').close();
   else if (act === 'copy') {
     const n = phoneOf(S.cur);
     navigator.clipboard?.writeText(n).then(() => toast('Number copied'), () => toast(n));
@@ -561,18 +670,23 @@ document.addEventListener('change', e => {
   }
 });
 document.addEventListener('keydown', e => {
-  if (e.target.closest('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if ($('editor').open || e.target.closest('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
   const k = e.key.toLowerCase();
   if (k === 'c') dial();
   else if (k >= '1' && k <= String(OUTCOMES.length)) logOutcome(OUTCOMES[+k - 1].k);
   else if (k === 'n') skip();
   else if (k === 'b') back();
   else if (k === 'p') pause();
+  else if (k === 'e' && S.cur >= 0) openEditor(S.cur);
+  else if (k === 'a') openEditor(-1);
   else return;
   e.preventDefault();
 });
 $('fileInput').onchange = e => { const f = e.target.files[0]; if (f) readFile(f); e.target.value = ''; };
 $('requeueBtn').onclick = requeue;
+$('blankBtn').onclick = newBlankList;
+$('editForm').onsubmit = saveEditor;
+$('edDelete').onclick = deleteContact;
 $('exportBtn').onclick = exportCSV;
 $('resetBtn').onclick = reset;
 ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); document.body.classList.add('drop-active'); }));
