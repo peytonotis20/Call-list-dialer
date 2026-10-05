@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Call List Dialer</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Dialer">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#1d6b57">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="xlsx.full.min.js"></script>
+<style>
+/* Layout: work surface on the left (current contact + outcome pad), queue on the right; stacks on phones. */
+:root {
+  --bg: #eef2f0; --surface: #ffffff; --sunk: #e4eae7; --ink: #15201c; --muted: #5a6a64; --line: #d3dcd8;
+  --accent: #1d6b57; --accent-ink: #ffffff; --accent-soft: #d6ebe3;
+  --good: #2c7a3a; --warn: #9a6200; --bad: #b0352b;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1513; --surface: #17201c; --sunk: #121a17; --ink: #e4ebe8; --muted: #91a29b; --line: #2a3632;
+  --accent: #4db08f; --accent-ink: #08130f; --accent-soft: #1d3a31;
+  --good: #63c174; --warn: #e2a640; --bad: #ef7568; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f1513; --surface: #17201c; --sunk: #121a17; --ink: #e4ebe8; --muted: #91a29b; --line: #2a3632;
+  --accent: #4db08f; --accent-ink: #08130f; --accent-soft: #1d3a31;
+  --good: #63c174; --warn: #e2a640; --bad: #ef7568; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--f-body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; display: grid; gap: 16px; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+/* top bar */
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.bar h1 { font: 600 22px/1 var(--f-display); margin: 0; letter-spacing: .01em; }
+.file { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.file-name { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+.stats { margin-left: auto; display: flex; gap: 18px; flex-wrap: wrap; }
+.stat b { display: block; font: 500 18px/1.1 var(--f-mono); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); }
+.progress { height: 4px; background: var(--sunk); border-radius: 2px; overflow: hidden; }
+.progress i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 7px 14px; border-radius: 6px; font-weight: 500; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.ghost { background: transparent; }
+.filebtn { position: relative; display: inline-block; }
+.filebtn:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.btn:disabled { opacity: .45; cursor: default; }
+
+.notice { border: 1px dashed var(--line); background: var(--sunk); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--muted); }
+.notice.warn { border-style: solid; border-color: var(--warn); color: var(--ink); }
+.drop-active { outline: 2px dashed var(--accent); outline-offset: -8px; }
+
+/* main grid */
+.main { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 860px) { .main { grid-template-columns: minmax(0, 1fr); } .stats { margin-left: 0; } }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.contact { padding: 20px; display: grid; gap: 18px; }
+.who { display: grid; gap: 4px; min-width: 0; }
+.who .pos { font-size: 13px; color: var(--muted); }
+.who h2 { font: 600 clamp(26px, 4vw, 34px)/1.1 var(--f-display); margin: 0; text-wrap: balance; overflow-wrap: anywhere; }
+.who .company { color: var(--muted); font-size: 16px; }
+.dialrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.number { font: 500 clamp(20px, 3.2vw, 26px)/1.2 var(--f-mono); font-variant-numeric: tabular-nums; user-select: all; }
+.call { display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px; font-size: 16px; font-weight: 600; border-radius: 999px; background: var(--accent); color: var(--accent-ink); border: 0; text-decoration: none; }
+.call:hover { filter: brightness(1.08); }
+.call svg { width: 18px; height: 18px; }
+.phase { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 32px; }
+.phase .live { color: var(--accent); font-weight: 600; }
+.phase .live::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px; animation: pulse 1.2s infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+@media (prefers-reduced-motion: reduce) { .phase .live::before { animation: none; } .progress i { transition: none; } }
+
+.outcomes { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.oc { min-height: 48px; display: flex; justify-content: space-between; align-items: center; gap: 8px; text-align: left; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); font-weight: 500; }
+.oc kbd { font: 12px var(--f-mono); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; }
+.oc[data-tone="good"] { border-left: 4px solid var(--good); }
+.oc[data-tone="warn"] { border-left: 4px solid var(--warn); }
+.oc[data-tone="bad"]  { border-left: 4px solid var(--bad); }
+.oc[data-tone="neutral"] { border-left: 4px solid var(--muted); }
+.oc:hover { background: var(--sunk); }
+.oc.chosen { background: var(--accent-soft); }
+
+textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 10px 12px; }
+.nav { display: flex; gap: 8px; flex-wrap: wrap; }
+.details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0; font-size: 14px; }
+.details dt { color: var(--muted); }
+.details dd { margin: 0; overflow-wrap: anywhere; }
+.done { padding: 40px 20px; text-align: center; display: grid; gap: 12px; justify-items: center; }
+.done h2 { font: 600 28px/1.1 var(--f-display); margin: 0; }
+
+/* queue */
+.queue { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: min(78vh, 900px); }
+.qhead { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.qhead select { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 5px 8px; }
+.qlist { overflow-y: auto; list-style: none; margin: 0; padding: 0; }
+.qlist li { display: grid; grid-template-columns: 2.6em minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.qlist li:hover { background: var(--sunk); }
+.qlist li.cur { background: var(--accent-soft); }
+.qlist .n { color: var(--muted); font-size: 12px; }
+.qlist .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qlist .ph { display: block; color: var(--muted); font-size: 12px; }
+.chip { font-size: 11px; font-weight: 600; letter-spacing: .03em; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; color: var(--muted); }
+.chip.good { color: var(--good); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); }
+.chip.pending { border-style: dashed; }
+
+/* settings */
+details.settings { padding: 0 16px; }
+details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
+.grid-set { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; padding-bottom: 16px; }
+.field { display: grid; gap: 4px; }
+.field select, .field input { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 6px 8px; width: 100%; }
+.field small { color: var(--muted); font-size: 12px; }
+.check { display: flex; gap: 8px; align-items: center; }
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 6px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <header class="bar">
+    <h1>Call List Dialer</h1>
+    <div class="file">
+      <label class="btn primary filebtn" for="fileInput">Load spreadsheet
+        <input type="file" id="fileInput" class="vh" accept=".csv,.xlsx,.xls,.tsv,.txt,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
+      <span class="file-name" id="fileName"></span>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+  <div class="progress"><i id="progress"></i></div>
+  <div id="notices" style="display:grid;gap:8px"></div>
+
+  <div class="main">
+    <section class="panel" id="work"></section>
+    <aside class="panel queue">
+      <div class="qhead">
+        <span class="label">Queue</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="filter" aria-label="Filter queue">
+            <option value="all">All contacts</option>
+            <option value="pending">Not called yet</option>
+            <option value="done">Called</option>
+            <option value="retry">No answer / busy / VM</option>
+            <option value="callback">Call back</option>
+          </select>
+          <button class="btn ghost" id="requeueBtn" title="Put skipped, no-answer and busy contacts back in the queue">Requeue unreached</button>
+        </div>
+      </div>
+      <ul class="qlist" id="qlist"></ul>
+    </aside>
+  </div>
+
+  <details class="panel settings" id="settings">
+    <summary>Columns &amp; dialing settings</summary>
+    <div class="grid-set" id="mapFields"></div>
+    <div class="grid-set">
+      <label class="field"><span class="label">Call using</span>
+        <select id="scheme">
+          <option value="tel:">tel: (default phone app, Teams, Zoom, RingCentral)</option>
+          <option value="callto:">callto: (Skype / some softphones)</option>
+          <option value="sip:">sip: (SIP softphones)</option>
+        </select>
+        <small>Which app opens depends on your computer's default app for phone links.</small>
+      </label>
+      <label class="field"><span class="label">Default country code</span>
+        <input id="cc" class="mono" inputmode="numeric" maxlength="4">
+        <small>Added to numbers that don't start with +. Use 1 for US/Canada.</small>
+      </label>
+      <label class="field"><span class="label">Seconds before next call</span>
+        <input id="delay" class="mono" type="number" min="0" max="120">
+        <small>Time to finish notes after you log an outcome.</small>
+      </label>
+      <div class="field"><span class="label">Auto-dial</span>
+        <label class="check"><input type="checkbox" id="auto"> Dial the next contact automatically</label>
+        <label class="check"><input type="checkbox" id="skipDupes"> Skip repeated phone numbers</label>
+      </div>
+    </div>
+    <div class="grid-set" style="grid-template-columns:1fr">
+      <div class="nav">
+        <button class="btn" id="exportBtn">Export results (.csv)</button>
+        <button class="btn ghost" id="resetBtn">Clear all outcomes</button>
+      </div>
+      <p class="notice" style="margin:0">Keyboard: <b>C</b> call · <b>1–7</b> log outcome · <b>N</b> skip · <b>B</b> back · <b>P</b> pause countdown. Shortcuts are off while you type notes. Progress is saved in this browser automatically.</p>
+    </div>
+  </details>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+const OUTCOMES = [
+  { k: 'connected', label: 'Connected',      tone: 'good' },
+  { k: 'voicemail', label: 'Left voicemail', tone: 'neutral' },
+  { k: 'noanswer',  label: 'No answer',      tone: 'neutral' },
+  { k: 'busy',      label: 'Busy',           tone: 'neutral' },
+  { k: 'callback',  label: 'Call back',      tone: 'warn' },
+  { k: 'wrong',     label: 'Wrong number',   tone: 'bad' },
+  { k: 'dnc',       label: 'Do not call',    tone: 'bad' },
+];
+const OC = Object.fromEntries(OUTCOMES.map(o => [o.k, o]));
+const META = { pending: ['Not called', 'pending'], skipped: ['Skipped', ''], invalid: ['Bad number', 'bad'], duplicate: ['Duplicate', ''] };
+const RETRY = new Set(['noanswer', 'busy', 'voicemail', 'skipped']);
+const STORE = 'calllistdialer.v1';
+
+const SAMPLE_HEADERS = ['First Name', 'Last Name', 'Company', 'Phone', 'Title', 'City'];
+const SAMPLE_ROWS = [
+  ['Dana', 'Whitfield', 'Harbor Freight Logistics', '(555) 010-2381', 'Operations Manager', 'Tacoma, WA'],
+  ['Marcus', 'Oyelaran', 'Bluebird Dental Group', '555-010-7742', 'Office Manager', 'Austin, TX'],
+  ['Priya', 'Natarajan', 'Kestrel Engineering', '+1 555 010 4410', 'Procurement Lead', 'Denver, CO'],
+  ['Tom', 'Bergstrom', 'Northside Auto Body', '5550109925', 'Owner', 'Duluth, MN'],
+  ['Alicia', 'Ferreira', 'Coastline Property Mgmt', '555.010.3307', 'Regional Director', 'Tampa, FL'],
+  ['Jordan', 'Pike', 'Pike & Sons Hardware', '555-010-3307', 'Buyer', 'Tampa, FL'],
+  ['Renee', 'Castellanos', 'Summit Charter School', '12', 'Facilities', 'Reno, NV'],
+];
+
+let S;
+let timer = null, countdown = 0;
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function fresh() {
+  return { file: '', sample: false, headers: [], rows: [], map: {}, res: [], cur: 0, oncall: false,
+           settings: { scheme: 'tel:', cc: '1', delay: 5, auto: true, skipDupes: true } };
+}
+function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
+function restore() { try { const s = JSON.parse(localStorage.getItem(STORE)); if (s && s.rows) return s; } catch (e) {} return null; }
+
+/* ---------- parsing ---------- */
+function parseCSV(text) {
+  const delim = (text.split('\n')[0].match(/\t/g) || []).length > (text.split('\n')[0].match(/,/g) || []).length ? '\t' : ',';
+  const out = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === delim) { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); out.push(row); row = []; f = ''; }
+    else f += c;
+  }
+  if (f !== '' || row.length) { row.push(f); out.push(row); }
+  return out;
+}
+function readFile(file) {
+  const isExcel = /\.xlsx?$/i.test(file.name);
+  const r = new FileReader();
+  r.onerror = () => toast('Could not read that file.');
+  r.onload = () => {
+    let grid;
+    if (isExcel) {
+      if (!window.XLSX) { toast('Excel support did not load. Reload the page, or save the sheet as CSV and load that instead.'); return; }
+      const wb = XLSX.read(r.result, { type: 'array' });
+      grid = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' });
+    } else grid = parseCSV(String(r.result).replace(/^\uFEFF/, ''));
+    grid = grid.filter(row => row.some(c => String(c).trim() !== ''));
+    if (grid.length < 2) { toast('That file has no contact rows under the header row.'); return; }
+    const headers = grid[0].map((h, i) => String(h).trim() || 'Column ' + (i + 1));
+    const rows = grid.slice(1).map(r => headers.map((_, i) => String(r[i] ?? '').trim()));
+    load(headers, rows, file.name, false);
+  };
+  isExcel ? r.readAsArrayBuffer(file) : r.readAsText(file);
+}
+function detect(headers) {
+  const find = (...res) => { for (const re of res) { const i = headers.findIndex(h => re.test(h.toLowerCase())); if (i >= 0) return i; } return -1; };
+  return {
+    phone: find(/^phone$/, /mobile|cell/, /phone/, /tel/, /number/),
+    name: find(/^(full ?)?name$/, /contact name/, /^contact$/),
+    first: find(/first/), last: find(/last|surname/),
+    company: find(/company|organi[sz]ation|account|business|employer/),
+  };
+}
+
+/* ---------- phone numbers ---------- */
+function norm(raw) {
+  let s = String(raw || '').split(/\s*(?:x|ext\.?|extension|#)\s*\d+\s*$/i)[0].trim();
+  const plus = s.startsWith('+') || s.startsWith('00');
+  let d = s.replace(/\D/g, '');
+  if (s.startsWith('00')) d = d.slice(2);
+  if (d.length < 7) return null;
+  if (plus) return '+' + d;
+  const cc = String(S.settings.cc || '').replace(/\D/g, '');
+  if (cc === '1') {
+    if (d.length === 10) return '+1' + d;
+    if (d.length === 11 && d[0] === '1') return '+' + d;
+    return null;
+  }
+  return cc ? '+' + cc + d.replace(/^0/, '') : d;
+}
+function pretty(n) {
+  if (!n) return '';
+  const m = n.match(/^\+1(\d{3})(\d{3})(\d{4})$/);
+  return m ? `+1 (${m[1]}) ${m[2]}-${m[3]}` : n;
+}
+const phoneOf = i => norm(S.map.phone >= 0 ? S.rows[i][S.map.phone] : '');
+const col = (i, k) => S.map[k] >= 0 ? S.rows[i][S.map[k]] : '';
+function nameOf(i) {
+  return col(i, 'name') || [col(i, 'first'), col(i, 'last')].filter(Boolean).join(' ') || 'No name';
+}
+
+/* ---------- state ---------- */
+function load(headers, rows, file, sample) {
+  const settings = S ? S.settings : fresh().settings;
+  S = fresh(); S.settings = settings;
+  Object.assign(S, { headers, rows, file, sample, map: detect(headers) });
+  S.res = rows.map(() => ({ status: 'pending', notes: '', at: '', attempts: 0 }));
+  validate();
+  S.cur = nextPending(-1);
+  stopTimer(); save(); renderAll();
+  if (!sample) toast(`Loaded ${rows.length} contacts from ${file}`);
+  if (S.map.phone < 0) $('settings').open = true;
+}
+function validate() {
+  const seen = new Set();
+  S.res.forEach((r, i) => {
+    if (!['pending', 'invalid', 'duplicate'].includes(r.status)) { const p = phoneOf(i); if (p) seen.add(p); return; }
+    const p = phoneOf(i);
+    r.status = !p ? 'invalid' : (S.settings.skipDupes && seen.has(p)) ? 'duplicate' : 'pending';
+    if (p) seen.add(p);
+  });
+}
+function nextPending(from) {
+  const n = S.res.length;
+  for (let k = 1; k <= n; k++) { const i = (from + k + n) % n; if (S.res[i].status === 'pending') return i; }
+  return -1;
+}
+
+/* ---------- actions ---------- */
+function dial() {
+  stopTimer();
+  const i = S.cur; if (i < 0) return;
+  const num = phoneOf(i);
+  if (!num) { toast('This contact has no usable phone number.'); return; }
+  const r = S.res[i];
+  r.attempts++; r.at = new Date().toISOString(); S.oncall = true;
+  const a = document.createElement('a');
+  a.href = S.settings.scheme + num;
+  a.style.display = 'none'; document.body.appendChild(a); a.click(); a.remove();
+  save(); renderWork(); renderQueue();
+}
+function logOutcome(k) {
+  const i = S.cur; if (i < 0) return;
+  const r = S.res[i];
+  r.status = k; r.notes = ($('notes')?.value || '').trim();
+  if (!r.attempts) r.attempts = 1;
+  if (!r.at) r.at = new Date().toISOString();
+  S.oncall = false;
+  const nxt = nextPending(i);
+  S.cur = nxt;
+  save(); renderAll();
+  toast(`${nameOf(i)}: ${OC[k].label}`);
+  if (nxt >= 0 && S.settings.auto) startTimer();
+}
+function skip() {
+  const i = S.cur; if (i < 0) return;
+  stopTimer();
+  if (S.res[i].status === 'pending') S.res[i].status = 'skipped';
+  S.res[i].notes = ($('notes')?.value || S.res[i].notes).trim();
+  S.oncall = false; S.cur = nextPending(i); save(); renderAll();
+}
+function back() {
+  stopTimer();
+  const target = S.cur < 0 ? S.res.length - 1 : S.cur - 1;
+  if (target >= 0) jump(target);
+}
+function jump(i) {
+  stopTimer(); if (S.cur >= 0 && $('notes')) S.res[S.cur].notes = $('notes').value.trim();
+  S.cur = i; S.oncall = false; save(); renderAll();
+}
+function startTimer() {
+  stopTimer(); countdown = Math.max(0, +S.settings.delay || 0);
+  if (countdown === 0) { dial(); return; }
+  timer = setInterval(() => { countdown--; if (countdown <= 0) dial(); else renderPhase(); }, 1000);
+  renderPhase();
+}
+function stopTimer() { if (timer) clearInterval(timer); timer = null; countdown = 0; }
+function pause() { if (timer) { stopTimer(); renderPhase(); toast('Auto-dial paused'); } }
+function requeue() {
+  let n = 0; S.res.forEach(r => { if (RETRY.has(r.status)) { r.status = 'pending'; n++; } });
+  if (S.cur < 0) S.cur = nextPending(-1);
+  save(); renderAll(); toast(n ? `${n} contacts back in the queue` : 'No unreached contacts to requeue');
+}
+let resetArmed = false;
+function reset() {
+  const b = $('resetBtn');
+  if (!resetArmed) { resetArmed = true; b.textContent = 'Click again to clear every outcome'; setTimeout(() => { resetArmed = false; b.textContent = 'Clear all outcomes'; }, 4000); return; }
+  resetArmed = false; b.textContent = 'Clear all outcomes';
+  S.res = S.rows.map(() => ({ status: 'pending', notes: '', at: '', attempts: 0 }));
+  validate(); S.cur = nextPending(-1); stopTimer(); save(); renderAll(); toast('Outcomes cleared');
+}
+function exportCSV() {
+  const q = v => /[",\n\r]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+  const head = [...S.headers, 'Dialed Number', 'Outcome', 'Notes', 'Attempts', 'Last Called'];
+  const lines = [head.map(q).join(',')];
+  S.rows.forEach((row, i) => {
+    const r = S.res[i];
+    lines.push([...row, phoneOf(i) || '', statusLabel(r.status), r.notes, r.attempts, r.at ? new Date(r.at).toLocaleString() : ''].map(q).join(','));
+  });
+  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv' });
+  const name = (S.file || 'contacts').replace(/\.[^.]+$/, '') + '-results.csv';
+  const file = typeof File === 'function' ? new File([blob], name, { type: 'text/csv' }) : null;
+  const touchApple = /iPad|iPhone|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
+  if (touchApple && file && navigator.canShare?.({ files: [file] })) {
+    navigator.share({ files: [file], title: name }).catch(err => { if (err.name !== 'AbortError') toast('Could not export: ' + err.message); });
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ---------- rendering ---------- */
+const statusLabel = s => OC[s]?.label || META[s]?.[0] || s;
+const statusTone = s => OC[s]?.tone || META[s]?.[1] || '';
+function chip(s) { return `<span class="chip ${statusTone(s)}">${esc(statusLabel(s))}</span>`; }
+
+function renderAll() { renderStats(); renderNotices(); renderWork(); renderQueue(); renderSettings(); }
+
+function renderStats() {
+  const c = s => S.res.filter(r => s(r.status)).length;
+  const total = S.res.length;
+  const pending = c(s => s === 'pending');
+  const called = c(s => !!OC[s]);
+  const connected = c(s => s === 'connected');
+  const cb = c(s => s === 'callback');
+  $('stats').innerHTML = [
+    [called, 'called'], [connected, 'connected'], [cb, 'call backs'], [pending, 'left to call'],
+  ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+  const workable = total - c(s => s === 'invalid' || s === 'duplicate');
+  $('progress').style.width = workable ? ((workable - pending) / workable * 100) + '%' : '0';
+  $('fileName').textContent = S.sample ? 'Sample list' : `${S.file} · ${total} rows`;
+}
+function renderNotices() {
+  const out = [];
+  if (S.sample) out.push(`<div class="notice">This is a made-up sample list so you can try the buttons. Click <b>Load spreadsheet</b> or drop a CSV/Excel file anywhere on the page to use your own contacts.</div>`);
+  if (S.map.phone < 0) out.push(`<div class="notice warn">No phone column was found. Pick it under <b>Columns &amp; dialing settings</b> below.</div>`);
+  const bad = S.res.filter(r => r.status === 'invalid').length;
+  if (bad && S.map.phone >= 0) out.push(`<div class="notice">${bad} contact${bad > 1 ? 's have' : ' has'} a missing or incomplete phone number and will be skipped. Filter the queue to <b>All contacts</b> to see them.</div>`);
+  const h = new Date().getHours();
+  if (h < 8 || h >= 21) out.push(`<div class="notice warn">It's outside 8am–9pm on your clock. US rules limit calls to those hours in the <i>contact's</i> time zone, so check where they are before dialing.</div>`);
+  $('notices').innerHTML = out.join('');
+}
+function renderWork() {
+  const w = $('work');
+  if (S.cur < 0) {
+    const anyRetry = S.res.some(r => RETRY.has(r.status));
+    w.innerHTML = `<div class="done"><span class="label">List complete</span><h2>Everyone in the queue has been called</h2>
+      <p style="margin:0;color:var(--muted)">Export your results, or put unreached contacts back in the queue for another pass.</p>
+      <div class="nav"><button class="btn primary" data-act="export">Export results (.csv)</button>
+      ${anyRetry ? '<button class="btn" data-act="requeue">Requeue unreached</button>' : ''}</div></div>`;
+    return;
+  }
+  const i = S.cur, r = S.res[i], num = phoneOf(i);
+  const skipCols = new Set(['phone', 'name', 'first', 'last', 'company'].map(k => S.map[k]));
+  const extra = S.headers.map((h, c) => [h, S.rows[i][c], c]).filter(([, v, c]) => v && !skipCols.has(c));
+  const hint = S.settings.scheme + (num || '');
+  w.innerHTML = `<div class="contact">
+    <div class="who">
+      <span class="pos mono">Contact ${i + 1} of ${S.rows.length} ${r.status !== 'pending' ? '· ' + chip(r.status) : ''}${r.attempts ? ` · ${r.attempts} attempt${r.attempts > 1 ? 's' : ''}` : ''}</span>
+      <h2>${esc(nameOf(i))}</h2>
+      ${col(i, 'company') ? `<span class="company">${esc(col(i, 'company'))}</span>` : ''}
+    </div>
+    <div class="dialrow">
+      <span class="number">${num ? esc(pretty(num)) : '<span style="color:var(--bad)">No usable number</span>'}</span>
+      ${num ? `<a class="call" href="${esc(hint)}" data-act="dial" title="Call (C)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>${r.attempts ? 'Call again' : 'Call'}</a>
+        <button class="btn ghost" data-act="copy">Copy number</button>` : ''}
+    </div>
+    <div class="phase" id="phase"></div>
+    <div style="display:grid;gap:8px">
+      <span class="label">How did it go?</span>
+      <div class="outcomes">${OUTCOMES.map((o, n) => `<button class="oc${r.status === o.k ? ' chosen' : ''}" data-tone="${o.tone}" data-oc="${o.k}">${o.label}<kbd>${n + 1}</kbd></button>`).join('')}</div>
+    </div>
+    <label style="display:grid;gap:6px"><span class="label">Notes</span>
+      <textarea id="notes" placeholder="Who you spoke to, next steps, best time to call back…">${esc(r.notes)}</textarea></label>
+    <div class="nav">
+      <button class="btn" data-act="back">← Back</button>
+      <button class="btn" data-act="skip">Skip for now</button>
+    </div>
+    ${extra.length ? `<div style="display:grid;gap:6px"><span class="label">From your spreadsheet</span><dl class="details">${extra.map(([h, v]) => `<dt>${esc(h)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>` : ''}
+  </div>`;
+  renderPhase();
+}
+function renderPhase() {
+  const p = $('phase'); if (!p) return;
+  if (timer) p.innerHTML = `<span>Calling <b>${esc(nameOf(S.cur))}</b> in <b class="mono">${countdown}s</b></span><button class="btn" data-act="dial">Call now</button><button class="btn ghost" data-act="pause">Pause (P)</button>`;
+  else if (S.oncall) p.innerHTML = `<span class="live">Call started</span><span>Log the outcome when you hang up. No call prompt? Tap Call.</span>`;
+  else p.innerHTML = S.settings.auto ? `<span>Auto-dial is on. After you log an outcome, the next call starts in ${+S.settings.delay || 0}s.</span>` : `<span>Auto-dial is off. Press Call for each contact.</span>`;
+}
+function renderQueue() {
+  const f = $('filter').value;
+  const keep = s => f === 'all' ? true : f === 'pending' ? s === 'pending' : f === 'done' ? !!OC[s] : f === 'retry' ? RETRY.has(s) : s === 'callback';
+  const items = [];
+  S.res.forEach((r, i) => {
+    if (!keep(r.status)) return;
+    const num = phoneOf(i);
+    items.push(`<li data-i="${i}" class="${i === S.cur ? 'cur' : ''}"><span class="n mono">${i + 1}</span><span style="min-width:0"><span class="nm">${esc(nameOf(i))}</span><span class="ph mono">${esc(num ? pretty(num) : (S.map.phone >= 0 ? S.rows[i][S.map.phone] : '') || '—')}</span></span>${chip(r.status)}</li>`);
+  });
+  $('qlist').innerHTML = items.join('') || `<li style="cursor:default;display:block;color:var(--muted)">Nothing matches this filter.</li>`;
+  $('qlist').querySelector('.cur')?.scrollIntoView({ block: 'nearest' });
+}
+function renderSettings() {
+  const opts = sel => `<option value="-1">(none)</option>` + S.headers.map((h, i) => `<option value="${i}"${i === sel ? ' selected' : ''}>${esc(h)}</option>`).join('');
+  $('mapFields').innerHTML = [['phone', 'Phone number column'], ['name', 'Full name column'], ['first', 'First name column'], ['last', 'Last name column'], ['company', 'Company column']]
+    .map(([k, l]) => `<label class="field"><span class="label">${l}</span><select id="map-${k}" data-map="${k}">${opts(S.map[k])}</select></label>`).join('');
+  $('scheme').value = S.settings.scheme; $('cc').value = S.settings.cc; $('delay').value = S.settings.delay;
+  $('auto').checked = S.settings.auto; $('skipDupes').checked = S.settings.skipDupes;
+}
+
+let toastT;
+function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  const oc = e.target.closest('[data-oc]'); if (oc) { logOutcome(oc.dataset.oc); return; }
+  const li = e.target.closest('#qlist li[data-i]'); if (li) { jump(+li.dataset.i); return; }
+  const a = e.target.closest('[data-act]'); if (!a) return;
+  const act = a.dataset.act;
+  if (act === 'dial') { e.preventDefault(); dial(); }
+  else if (act === 'skip') skip();
+  else if (act === 'back') back();
+  else if (act === 'pause') pause();
+  else if (act === 'export') exportCSV();
+  else if (act === 'requeue') requeue();
+  else if (act === 'copy') {
+    const n = phoneOf(S.cur);
+    navigator.clipboard?.writeText(n).then(() => toast('Number copied'), () => toast(n));
+  }
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'notes' && S.cur >= 0) { S.res[S.cur].notes = e.target.value; save(); }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset.map) { S.map[t.dataset.map] = +t.value; validate(); if (S.cur < 0 || S.res[S.cur].status === 'invalid') S.cur = nextPending(-1); save(); renderStats(); renderNotices(); renderWork(); renderQueue(); }
+  else if (t.id === 'filter') renderQueue();
+  else if (['scheme', 'cc', 'delay', 'auto', 'skipDupes'].includes(t.id)) {
+    S.settings[t.id] = t.type === 'checkbox' ? t.checked : t.id === 'delay' ? Math.max(0, +t.value || 0) : t.value;
+    if (t.id === 'cc' || t.id === 'skipDupes') { validate(); if (S.cur < 0) S.cur = nextPending(-1); }
+    if (t.id === 'auto' && !t.checked) stopTimer();
+    save(); renderStats(); renderNotices(); renderWork(); renderQueue();
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.target.closest('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
+  const k = e.key.toLowerCase();
+  if (k === 'c') dial();
+  else if (k >= '1' && k <= String(OUTCOMES.length)) logOutcome(OUTCOMES[+k - 1].k);
+  else if (k === 'n') skip();
+  else if (k === 'b') back();
+  else if (k === 'p') pause();
+  else return;
+  e.preventDefault();
+});
+$('fileInput').onchange = e => { const f = e.target.files[0]; if (f) readFile(f); e.target.value = ''; };
+$('requeueBtn').onclick = requeue;
+$('exportBtn').onclick = exportCSV;
+$('resetBtn').onclick = reset;
+['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); document.body.classList.add('drop-active'); }));
+['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === 'drop' || !e.relatedTarget) document.body.classList.remove('drop-active'); }));
+document.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) readFile(f); });
+
+if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+S = restore();
+if (S) { S.oncall = false; renderAll(); } else load(SAMPLE_HEADERS, SAMPLE_ROWS, 'sample', true);
+})();
+</script>
+</body>
+</html>
