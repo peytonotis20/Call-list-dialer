@@ -113,13 +113,23 @@ textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid va
 .queue { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: min(78vh, 900px); }
 .qhead { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .qhead select { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 5px 8px; }
-.qlist { overflow-y: auto; list-style: none; margin: 0; padding: 0; }
+.qlist { position: relative; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
 .qlist li { display: grid; grid-template-columns: 2.6em minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .qlist li:hover { background: var(--sunk); }
 .qlist li.cur { background: var(--accent-soft); }
 .qlist .n { color: var(--muted); font-size: 12px; }
 .qlist .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qlist .ph { display: block; color: var(--muted); font-size: 12px; }
+.numbers { display: grid; gap: 8px; }
+.numrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+.numrow.cur { background: var(--accent-soft); border-color: var(--accent); }
+.numinfo { display: grid; gap: 2px; margin-right: auto; min-width: 0; }
+.numlabel { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; overflow-wrap: anywhere; }
+.numrow .number { font-size: clamp(18px, 2.6vw, 22px); }
+.numrow:not(.cur) .number { color: var(--muted); }
+.nonum { margin: 0; color: var(--bad); }
+.colpick { display: flex; flex-wrap: wrap; gap: 6px 16px; max-height: 180px; overflow: auto; border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; background: var(--bg); }
+.ed-hint { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); }
 .chip { font-size: 11px; font-weight: 600; letter-spacing: .03em; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; color: var(--muted); }
 .chip.good { color: var(--good); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); }
 .chip.pending { border-style: dashed; }
@@ -202,7 +212,8 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
       </label>
       <div class="field"><span class="label">Auto-dial</span>
         <label class="check"><input type="checkbox" id="auto"> Dial the next contact automatically</label>
-        <label class="check"><input type="checkbox" id="skipDupes"> Skip repeated phone numbers</label>
+        <label class="check"><input type="checkbox" id="combine"> Combine repeated rows for the same person</label>
+        <small>Applies the next time you load a spreadsheet.</small>
       </div>
     </div>
     <div class="grid-set" style="grid-template-columns:1fr">
@@ -242,34 +253,38 @@ const OUTCOMES = [
   { k: 'dnc',       label: 'Do not call',    tone: 'bad' },
 ];
 const OC = Object.fromEntries(OUTCOMES.map(o => [o.k, o]));
-const META = { pending: ['Not called', 'pending'], skipped: ['Skipped', ''], invalid: ['Bad number', 'bad'], duplicate: ['Duplicate', ''] };
+const META = { pending: ['Not called', 'pending'], skipped: ['Skipped', ''], invalid: ['No number', 'bad'] };
+// Outcomes that only say something about one number: try the contact's next number.
+const NUM_LEVEL = new Set(['noanswer', 'busy', 'voicemail', 'wrong']);
 const RETRY = new Set(['noanswer', 'busy', 'voicemail', 'skipped']);
 const STORE = 'calllistdialer.v1';
+const PHONE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>';
 
-const SAMPLE_HEADERS = ['First Name', 'Last Name', 'Company', 'Phone', 'Title', 'City'];
+const SAMPLE_HEADERS = ['First Name', 'Last Name', 'Business', 'Main Phone', 'Alt Phone', 'City'];
 const SAMPLE_ROWS = [
-  ['Dana', 'Whitfield', 'Harbor Freight Logistics', '(555) 010-2381', 'Operations Manager', 'Tacoma, WA'],
-  ['Marcus', 'Oyelaran', 'Bluebird Dental Group', '555-010-7742', 'Office Manager', 'Austin, TX'],
-  ['Priya', 'Natarajan', 'Kestrel Engineering', '+1 555 010 4410', 'Procurement Lead', 'Denver, CO'],
-  ['Tom', 'Bergstrom', 'Northside Auto Body', '5550109925', 'Owner', 'Duluth, MN'],
-  ['Alicia', 'Ferreira', 'Coastline Property Mgmt', '555.010.3307', 'Regional Director', 'Tampa, FL'],
-  ['Jordan', 'Pike', 'Pike & Sons Hardware', '555-010-3307', 'Buyer', 'Tampa, FL'],
-  ['Renee', 'Castellanos', 'Summit Charter School', '12', 'Facilities', 'Reno, NV'],
+  ['Dana', 'Whitfield', 'Harbor Freight Logistics', '(555) 010-2381', '555-010-2382', 'Tacoma, WA'],
+  ['Marcus', 'Oyelaran', 'Bluebird Dental Group', '555-010-7742', '', 'Austin, TX'],
+  ['Priya', 'Natarajan', 'Kestrel Engineering', '+1 555 010 4410', '555 010 4411, 555 010 4412', 'Denver, CO'],
+  ['Tom', 'Bergstrom', 'Northside Auto Body', '5550109925', '', 'Duluth, MN'],
+  ['Alicia', 'Ferreira', 'Coastline Property Mgmt', '555.010.3307', '5550103308 (w)', 'Tampa, FL'],
+  ['Renee', 'Castellanos', 'Summit Charter School', '12', '', 'Reno, NV'],
 ];
 
 let S;
-let timer = null, countdown = 0;
+let timer = null, countdown = 0, phoneCache = new WeakMap(), saveT;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const newRes = () => ({ status: 'pending', notes: '', at: '', attempts: 0, tried: {}, log: [] });
 
 function fresh() {
-  return { file: '', sample: false, headers: [], rows: [], map: {}, res: [], cur: 0, oncall: false,
-           settings: { scheme: 'tel:', cc: '1', delay: 5, auto: true, skipDupes: true } };
+  return { file: '', sample: false, headers: [], rows: [], map: { phones: [] }, res: [], cur: 0, curNum: 0, oncall: false, loadInfo: null,
+           settings: { scheme: 'tel:', cc: '1', delay: 5, auto: true, combine: true } };
 }
-function save() { try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
+function save() { clearTimeout(saveT); try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
+function saveSoon() { clearTimeout(saveT); saveT = setTimeout(save, 400); }
 function restore() { try { const s = JSON.parse(localStorage.getItem(STORE)); if (s && s.rows) return s; } catch (e) {} return null; }
 
-/* ---------- parsing ---------- */
+/* ---------- reading spreadsheets ---------- */
 function parseCSV(text) {
   const delim = (text.split('\n')[0].match(/\t/g) || []).length > (text.split('\n')[0].match(/,/g) || []).length ? '\t' : ',';
   const out = []; let row = [], f = '', q = false;
@@ -284,6 +299,16 @@ function parseCSV(text) {
   if (f !== '' || row.length) { row.push(f); out.push(row); }
   return out;
 }
+// The header row is the first row (within the top 10) that is mostly filled with text,
+// so a title or date line above the headings is skipped.
+function headerIndex(grid) {
+  const look = grid.slice(0, 10);
+  const filled = r => r.filter(c => String(c).trim()).length;
+  const textish = r => r.filter(c => { const v = String(c).trim(); return v && !/^[\d\s$.,:/()+-]+$/.test(v); }).length;
+  const max = Math.max(...look.map(filled));
+  const i = look.findIndex(r => filled(r) >= Math.max(2, max * 0.5) && textish(r) >= filled(r) * 0.6);
+  return i < 0 ? 0 : i;
+}
 function readFile(file) {
   const isExcel = /\.xlsx?$/i.test(file.name);
   const r = new FileReader();
@@ -294,23 +319,41 @@ function readFile(file) {
       if (!window.XLSX) { toast('Excel support did not load. Reload the page, or save the sheet as CSV and load that instead.'); return; }
       const wb = XLSX.read(r.result, { type: 'array' });
       grid = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, raw: false, defval: '' });
-    } else grid = parseCSV(String(r.result).replace(/^\uFEFF/, ''));
+    } else grid = parseCSV(String(r.result).replace(/^﻿/, ''));
     grid = grid.filter(row => row.some(c => String(c).trim() !== ''));
-    if (grid.length < 2) { toast('That file has no contact rows under the header row.'); return; }
-    const headers = grid[0].map((h, i) => String(h).trim() || 'Column ' + (i + 1));
-    const rows = grid.slice(1).map(r => headers.map((_, i) => String(r[i] ?? '').trim()));
+    const h = headerIndex(grid);
+    if (grid.length < h + 2) { toast('That file has no contact rows under the header row.'); return; }
+    const width = Math.max(...grid.map(r => r.length));
+    const headers = Array.from({ length: width }, (_, i) => String(grid[h][i] ?? '').trim() || 'Column ' + (i + 1));
+    const rows = grid.slice(h + 1).map(r => headers.map((_, i) => String(r[i] ?? '').trim()));
     load(headers, rows, file.name, false);
   };
   isExcel ? r.readAsArrayBuffer(file) : r.readAsText(file);
 }
-function detect(headers) {
+
+/* ---------- columns ---------- */
+const PHONE_HEAD = /phone|mobile|cell|\btel\b|telephone|contact (no|number)|^number$/i;
+const NOT_PHONE_HEAD = /valid|type|status|carrier|\bext|fax|dnc|verified|date|count/i;
+const NOT_PHONE_DATA = /zip|postal|acc(oun)?t|acct|ein|ssn|tax|\bid\b|routing|amount|sales|revenue|price|balance/i;
+function detect(headers, rows) {
   const find = (...res) => { for (const re of res) { const i = headers.findIndex(h => re.test(h.toLowerCase())); if (i >= 0) return i; } return -1; };
-  return {
-    phone: find(/^phone$/, /mobile|cell/, /phone/, /tel/, /number/),
+  const m = {
     name: find(/^(full ?)?name$/, /contact name/, /^contact$/),
     first: find(/first/), last: find(/last|surname/),
-    company: find(/company|organi[sz]ation|account|business|employer/),
+    company: find(/company|organi[sz]ation|business|employer|account name/),
   };
+  const taken = new Set([m.name, m.first, m.last, m.company]);
+  const sample = rows.slice(0, 300);
+  // Every phone-like column: by heading, or because most of its values are phone numbers.
+  m.phones = headers.map((_, c) => c).filter(c => {
+    const h = headers[c];
+    if (taken.has(c) || NOT_PHONE_HEAD.test(h)) return false;
+    if (PHONE_HEAD.test(h)) return true;
+    if (NOT_PHONE_DATA.test(h)) return false;
+    const vals = sample.map(r => r[c]).filter(Boolean);
+    return vals.length >= 3 && vals.filter(v => numbersIn(v).length).length / vals.length >= 0.6;
+  });
+  return m;
 }
 
 /* ---------- phone numbers ---------- */
@@ -329,36 +372,113 @@ function norm(raw) {
   }
   return cc ? '+' + cc + d.replace(/^0/, '') : d;
 }
+// All numbers in one cell: "555-010-1234, 555-010-9876", "5550101234 (w)", "… or …".
+// Dollar amounts are ignored so a sales figure in a phone column is never dialed.
+function numbersIn(raw) {
+  const out = [];
+  String(raw || '').split(/[,;\/|\n]+|\s+(?:or|and|&)\s+/i).forEach(part => {
+    if (part.includes('$')) return;
+    const tag = (part.match(/\(([a-z][a-z .]{0,15})\)/i) || [])[1] || '';
+    (part.match(/\+?\d[\d\s().-]{5,}\d/g) || []).forEach(run => {
+      const n = norm(run);
+      if (n) { out.push({ num: n, tag }); return; }
+      const d = run.replace(/\D/g, '');
+      if (S.settings.cc === '1' && !run.includes('+') && (d.length === 20 || d.length === 30))
+        d.match(/\d{10}/g).forEach(x => out.push({ num: '+1' + x, tag }));
+    });
+  });
+  return out;
+}
+function phonesOfRow(row) {
+  const seen = new Set(), out = [];
+  (S.map.phones || []).forEach(c => numbersIn(row[c]).forEach(({ num, tag }) => {
+    if (seen.has(num)) return;
+    seen.add(num);
+    out.push({ num, label: S.headers[c] + (tag ? ` (${tag})` : '') });
+  }));
+  return out;
+}
+function phonesOf(i) {
+  const row = S.rows[i]; if (!row) return [];
+  let p = phoneCache.get(row);
+  if (!p) { p = phonesOfRow(row); phoneCache.set(row, p); }
+  return p;
+}
 function pretty(n) {
   if (!n) return '';
   const m = n.match(/^\+1(\d{3})(\d{3})(\d{4})$/);
   return m ? `+1 (${m[1]}) ${m[2]}-${m[3]}` : n;
 }
-const phoneOf = i => norm(S.map.phone >= 0 ? S.rows[i][S.map.phone] : '');
-const col = (i, k) => S.map[k] >= 0 ? S.rows[i][S.map[k]] : '';
-function nameOf(i) {
-  return col(i, 'name') || [col(i, 'first'), col(i, 'last')].filter(Boolean).join(' ') || 'No name';
-}
+const cell = (row, c) => c >= 0 ? String(row[c] ?? '').trim() : '';
+const nameOfRow = row => cell(row, S.map.name) || [cell(row, S.map.first), cell(row, S.map.last)].filter(Boolean).join(' ');
+const nameOf = i => nameOfRow(S.rows[i]) || cell(S.rows[i], S.map.company) || 'No name';
+const col = (i, k) => cell(S.rows[i], S.map[k]);
 
-/* ---------- state ---------- */
+/* ---------- loading & combining rows ---------- */
+// Drops rows with neither a name nor a number (date dividers, blank lines), then combines
+// rows for the same person: same name and same business, or same name and a shared number.
+function tidy(rows, combine) {
+  const H = S.headers, m = S.map;
+  let dropped = 0, merged = 0;
+  rows = rows.filter(r => { const keep = nameOfRow(r) || phonesOfRow(r).length; if (!keep) dropped++; return keep; });
+  if (!combine) return { rows, dropped, merged };
+  const key = r => nameOfRow(r).toLowerCase().replace(/\s+/g, ' ');
+  const biz = r => cell(r, m.company).toLowerCase();
+  const addCol = title => { let c = H.indexOf(title); if (c < 0) { H.push(title); c = H.length - 1; } return c; };
+  const out = [], byName = new Map();
+  for (const r of rows) {
+    const k = key(r), nums = phonesOfRow(r).map(p => p.num);
+    const cands = k ? byName.get(k) || [] : [];
+    const target = cands.find(t => biz(t) === biz(r) || phonesOfRow(t).some(p => nums.includes(p.num)));
+    if (!target) { const copy = r.slice(); out.push(copy); if (k) byName.set(k, [...cands, copy]); continue; }
+    merged++;
+    const have = new Set(phonesOfRow(target).map(p => p.num));
+    nums.forEach(n => {
+      if (have.has(n)) return;
+      have.add(n);
+      const empty = m.phones.find(c => !cell(target, c));
+      if (empty !== undefined) { target[empty] = pretty(n); return; }
+      const oc = addCol('Other Phones');
+      if (!m.phones.includes(oc)) m.phones.push(oc);
+      target[oc] = [cell(target, oc), pretty(n)].filter(Boolean).join(', ');
+    });
+    if (biz(r) && biz(r) !== biz(target)) {
+      const bc = addCol('Other Businesses'), list = cell(target, bc);
+      if (!list.toLowerCase().split('; ').includes(biz(r))) target[bc] = [list, cell(r, m.company)].filter(Boolean).join('; ');
+    }
+    H.forEach((h, c) => {
+      if (m.phones.includes(c) || c === m.company || c >= r.length) return;
+      const mine = cell(target, c), theirs = cell(r, c);
+      if (!theirs || mine === theirs) return;
+      if (!mine) target[c] = theirs;
+      else if (/note|comment/i.test(h)) target[c] = mine + ' | ' + theirs;
+    });
+  }
+  out.forEach(r => { for (let c = 0; c < H.length; c++) if (r[c] == null) r[c] = ''; });
+  return { rows: out, dropped, merged };
+}
 function load(headers, rows, file, sample) {
   const settings = S ? S.settings : fresh().settings;
   S = fresh(); S.settings = settings;
-  Object.assign(S, { headers, rows, file, sample, map: detect(headers) });
-  S.res = rows.map(() => ({ status: 'pending', notes: '', at: '', attempts: 0 }));
+  Object.assign(S, { headers, file, sample });
+  phoneCache = new WeakMap();
+  S.map = detect(headers, rows);
+  const t = tidy(rows, settings.combine);
+  S.rows = t.rows;
+  S.res = S.rows.map(newRes);
+  S.loadInfo = sample ? null : { rows: rows.length, dropped: t.dropped, merged: t.merged, multi: S.rows.filter((_, i) => phonesOf(i).length > 1).length };
   validate();
-  S.cur = nextPending(-1);
+  S.cur = nextPending(-1); S.curNum = firstUntried(S.cur);
   stopTimer(); save(); renderAll();
-  if (!sample && rows.length) toast(`Loaded ${rows.length} contacts from ${file}`);
-  if (S.map.phone < 0) $('settings').open = true;
+  if (!sample && S.rows.length) toast(`Loaded ${S.rows.length} contacts from ${file}`);
+  if (!S.map.phones.length) $('settings').open = true;
 }
 function validate() {
-  const seen = new Set();
   S.res.forEach((r, i) => {
-    if (!['pending', 'invalid', 'duplicate'].includes(r.status)) { const p = phoneOf(i); if (p) seen.add(p); return; }
-    const p = phoneOf(i);
-    r.status = !p ? 'invalid' : (S.settings.skipDupes && seen.has(p)) ? 'duplicate' : 'pending';
-    if (p) seen.add(p);
+    r.tried ||= {}; r.log ||= [];
+    const has = phonesOf(i).length > 0;
+    if (!has && ['pending', 'invalid', 'duplicate'].includes(r.status)) r.status = 'invalid';
+    else if (has && ['invalid', 'duplicate'].includes(r.status)) r.status = 'pending';
   });
 }
 function nextPending(from) {
@@ -366,39 +486,73 @@ function nextPending(from) {
   for (let k = 1; k <= n; k++) { const i = (from + k + n) % n; if (S.res[i].status === 'pending') return i; }
   return -1;
 }
+function firstUntried(i) {
+  if (i < 0 || !S.res[i]) return 0;
+  const k = phonesOf(i).findIndex(p => !S.res[i].tried[p.num]);
+  return k < 0 ? 0 : k;
+}
+function nextUntried(i, after) {
+  const nums = phonesOf(i), tried = S.res[i].tried;
+  for (let k = after + 1; k < nums.length; k++) if (!tried[nums[k].num]) return k;
+  for (let k = 0; k < after; k++) if (!tried[nums[k].num]) return k;
+  return -1;
+}
+const curPhone = () => { const nums = phonesOf(S.cur); return nums[S.curNum] || nums[0]; };
 
 /* ---------- actions ---------- */
-function dial() {
+function launch(href) {
+  const a = document.createElement('a');
+  a.href = href; a.style.display = 'none';
+  document.body.appendChild(a); a.click(); a.remove();
+}
+function dial(k) {
   stopTimer();
   const i = S.cur; if (i < 0) return;
-  const num = phoneOf(i);
-  if (!num) { toast('This contact has no usable phone number.'); return; }
+  if (k !== undefined) S.curNum = k;
+  const p = curPhone();
+  if (!p) { toast('This contact has no usable phone number.'); return; }
+  S.curNum = phonesOf(i).indexOf(p);
   const r = S.res[i];
   r.attempts++; r.at = new Date().toISOString(); S.oncall = true;
-  const a = document.createElement('a');
-  a.href = S.settings.scheme + num;
-  a.style.display = 'none'; document.body.appendChild(a); a.click(); a.remove();
+  launch(S.settings.scheme + p.num);
   save(); renderWork(); renderQueue();
+}
+function bestOf(i) {
+  const r = S.res[i], ks = phonesOf(i).map(p => r.tried[p.num]).filter(Boolean);
+  return ['voicemail', 'noanswer', 'busy', 'wrong'].find(x => ks.includes(x)) || 'noanswer';
 }
 function logOutcome(k) {
   const i = S.cur; if (i < 0) return;
-  const r = S.res[i];
-  r.status = k; r.notes = ($('notes')?.value || '').trim();
+  stopTimer();
+  const r = S.res[i], nums = phonesOf(i), p = curPhone();
+  r.notes = ($('notes')?.value ?? r.notes ?? '').trim();
   if (!r.attempts) r.attempts = 1;
-  if (!r.at) r.at = new Date().toISOString();
+  const at = new Date().toISOString();
+  if (!r.at) r.at = at;
+  if (p) { r.tried[p.num] = k; r.log.push({ n: p.num, l: p.label, k, at }); }
   S.oncall = false;
+  // Not reached on this number: move to the contact's next untried number.
+  const nextNum = p && NUM_LEVEL.has(k) ? nextUntried(i, nums.indexOf(p)) : -1;
+  if (nextNum >= 0) {
+    S.curNum = nextNum; r.status = 'pending';
+    save(); renderAll();
+    toast(`${OC[k].label} on ${p.label}. Next: ${nums[nextNum].label}`);
+    if (S.settings.auto) startTimer();
+    return;
+  }
+  r.status = NUM_LEVEL.has(k) ? bestOf(i) : k;
   const nxt = nextPending(i);
-  S.cur = nxt;
+  S.cur = nxt; S.curNum = firstUntried(nxt);
   save(); renderAll();
-  toast(`${nameOf(i)}: ${OC[k].label}`);
+  toast(`${nameOf(i)}: ${statusLabel(r.status)}${NUM_LEVEL.has(k) && nums.length > 1 ? ` (all ${nums.length} numbers tried)` : ''}`);
   if (nxt >= 0 && S.settings.auto) startTimer();
 }
 function skip() {
   const i = S.cur; if (i < 0) return;
   stopTimer();
   if (S.res[i].status === 'pending') S.res[i].status = 'skipped';
-  S.res[i].notes = ($('notes')?.value || S.res[i].notes).trim();
-  S.oncall = false; S.cur = nextPending(i); save(); renderAll();
+  S.res[i].notes = ($('notes')?.value ?? S.res[i].notes).trim();
+  S.oncall = false; S.cur = nextPending(i); S.curNum = firstUntried(S.cur); save(); renderAll();
 }
 function back() {
   stopTimer();
@@ -407,7 +561,7 @@ function back() {
 }
 function jump(i) {
   stopTimer(); if (S.cur >= 0 && $('notes')) S.res[S.cur].notes = $('notes').value.trim();
-  S.cur = i; S.oncall = false; save(); renderAll();
+  S.cur = i; S.curNum = firstUntried(i); S.oncall = false; save(); renderAll();
 }
 function startTimer() {
   stopTimer(); countdown = Math.max(0, +S.settings.delay || 0);
@@ -417,9 +571,16 @@ function startTimer() {
 }
 function stopTimer() { if (timer) clearInterval(timer); timer = null; countdown = 0; }
 function pause() { if (timer) { stopTimer(); renderPhase(); toast('Auto-dial paused'); } }
+// Unreached contacts go back in the queue; numbers marked Wrong number stay skipped.
 function requeue() {
-  let n = 0; S.res.forEach(r => { if (RETRY.has(r.status)) { r.status = 'pending'; n++; } });
+  let n = 0;
+  S.res.forEach(r => {
+    if (!RETRY.has(r.status)) return;
+    r.status = 'pending'; n++;
+    for (const num in r.tried) if (r.tried[num] !== 'wrong') delete r.tried[num];
+  });
   if (S.cur < 0) S.cur = nextPending(-1);
+  S.curNum = firstUntried(S.cur);
   save(); renderAll(); toast(n ? `${n} contacts back in the queue` : 'No unreached contacts to requeue');
 }
 let resetArmed = false;
@@ -427,19 +588,20 @@ function reset() {
   const b = $('resetBtn');
   if (!resetArmed) { resetArmed = true; b.textContent = 'Click again to clear every outcome'; setTimeout(() => { resetArmed = false; b.textContent = 'Clear all outcomes'; }, 4000); return; }
   resetArmed = false; b.textContent = 'Clear all outcomes';
-  S.res = S.rows.map(() => ({ status: 'pending', notes: '', at: '', attempts: 0 }));
-  validate(); S.cur = nextPending(-1); stopTimer(); save(); renderAll(); toast('Outcomes cleared');
+  S.res = S.rows.map(newRes);
+  validate(); S.cur = nextPending(-1); S.curNum = firstUntried(S.cur); stopTimer(); save(); renderAll(); toast('Outcomes cleared');
 }
 function exportCSV() {
   const q = v => /[",\n\r]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
-  const head = [...S.headers, 'Dialed Number', 'Outcome', 'Notes', 'Attempts', 'Last Called'];
+  const head = [...S.headers, 'All Numbers', 'Outcome', 'Call History', 'Notes', 'Attempts', 'Last Called'];
   const lines = [head.map(q).join(',')];
   S.rows.forEach((row, i) => {
     const r = S.res[i];
-    lines.push([...row, phoneOf(i) || '', statusLabel(r.status), r.notes, r.attempts, r.at ? new Date(r.at).toLocaleString() : ''].map(q).join(','));
+    const history = r.log.map(e => `${new Date(e.at).toLocaleString()} ${e.l} ${pretty(e.n)}: ${OC[e.k]?.label || e.k}`).join(' | ');
+    lines.push([...row, phonesOf(i).map(p => pretty(p.num)).join('; '), statusText(i), history, r.notes, r.attempts, r.at ? new Date(r.at).toLocaleString() : ''].map(q).join(','));
   });
-  const blob = new Blob(['\uFEFF' + lines.join('\r\n')], { type: 'text/csv' });
   const name = (S.file || 'contacts').replace(/\.[^.]+$/, '') + '-results.csv';
+  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv' });
   const file = typeof File === 'function' ? new File([blob], name, { type: 'text/csv' }) : null;
   const touchApple = /iPad|iPhone|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
   if (touchApple && file && navigator.canShare?.({ files: [file] })) {
@@ -454,7 +616,7 @@ function exportCSV() {
 }
 
 /* ---------- adding & editing contacts ---------- */
-const BLANK_HEADERS = ['Name', 'Company', 'Phone', 'Email'];
+const BLANK_HEADERS = ['Name', 'Company', 'Phone', 'Alt Phone', 'Email'];
 let editing = -1, delArmed = false, blankArmed = false;
 
 function startBlank() {
@@ -471,8 +633,7 @@ function newBlankList() {
   startBlank(); toast('Started a new blank list');
 }
 function editorOrder() {
-  const roles = ['name', 'first', 'last', 'phone', 'company'].map(k => S.map[k]).filter(c => c >= 0);
-  const first = [...new Set(roles)];
+  const first = [...new Set([S.map.name, S.map.first, S.map.last, ...S.map.phones, S.map.company].filter(c => c >= 0))];
   return [...first, ...S.headers.map((_, c) => c).filter(c => !first.includes(c))];
 }
 function openEditor(i) {
@@ -482,12 +643,13 @@ function openEditor(i) {
   if (i < 0 && !S.headers.length) startBlank();
   editing = i;
   const vals = i >= 0 ? S.rows[i] : S.headers.map(() => '');
-  $('edFields').innerHTML = editorOrder().map(c => {
-    const isPhone = c === S.map.phone, isEmail = /e-?mail/i.test(S.headers[c]);
-    const type = isPhone ? 'type="tel" inputmode="tel" autocomplete="off"' : isEmail ? 'type="email" autocapitalize="off"' : 'type="text"';
-    return `<label class="field"><span class="label">${esc(S.headers[c])}${isPhone ? ' (required)' : ''}</span>
-      <input id="ed-${c}" data-c="${c}" ${type} value="${esc(vals[c])}"></label>`;
-  }).join('');
+  $('edFields').innerHTML = `<p class="ed-hint">Enter at least one phone number. To put more than one number in a box, separate them with commas.</p>` +
+    editorOrder().map(c => {
+      const isPhone = S.map.phones.includes(c), isEmail = /e-?mail/i.test(S.headers[c]);
+      const type = isPhone ? 'type="tel" inputmode="tel" autocomplete="off"' : isEmail ? 'type="email" autocapitalize="off"' : 'type="text"';
+      return `<label class="field"><span class="label">${esc(S.headers[c])}</span>
+        <input id="ed-${c}" data-c="${c}" ${type} value="${esc(vals[c])}"></label>`;
+    }).join('');
   $('edTitle').textContent = i < 0 ? 'Add contact' : 'Edit contact';
   $('edSave').textContent = i < 0 ? 'Add to list' : 'Save changes';
   $('edDelete').hidden = i < 0;
@@ -502,27 +664,26 @@ function saveEditor(e) {
   const vals = S.headers.map((_, c) => ($('ed-' + c)?.value || '').trim());
   const err = msg => { $('edErr').textContent = msg; $('edErr').hidden = false; };
   if (!vals.some(Boolean)) return err('Fill in at least a name and phone number.');
-  if (S.map.phone < 0) return err('Pick a phone number column under Columns & dialing settings first.');
-  if (!norm(vals[S.map.phone])) return err('Enter a full phone number, including the area code.');
+  if (!S.map.phones.length) return err('Tick at least one phone number column under Columns & dialing settings first.');
+  if (!phonesOfRow(vals).length) return err('Enter at least one full phone number, including the area code.');
   let idx = editing;
   if (idx < 0) {
     S.rows.push(vals);
-    S.res.push({ status: 'pending', notes: '', at: '', attempts: 0 });
+    S.res.push(newRes());
     idx = S.rows.length - 1;
   } else S.rows[idx] = vals;
   validate();
   if (S.res[idx].status === 'pending' && (S.cur < 0 || (editing < 0 && $('edFront').checked && !S.oncall))) S.cur = idx;
+  if (S.cur === idx) S.curNum = firstUntried(idx);
   save(); $('editor').close(); renderAll();
-  toast(S.res[idx].status === 'duplicate'
-    ? `${nameOf(idx)} has the same number as another contact, so it's marked Duplicate`
-    : editing < 0 ? `Added ${nameOf(idx)}` : `Saved ${nameOf(idx)}`);
+  toast(editing < 0 ? `Added ${nameOf(idx)}` : `Saved ${nameOf(idx)}`);
 }
 function deleteContact() {
   const i = editing; if (i < 0) return;
   if (!delArmed) { delArmed = true; $('edDelete').textContent = 'Tap again to delete'; return; }
   const name = nameOf(i);
   S.rows.splice(i, 1); S.res.splice(i, 1);
-  if (S.cur === i) { S.oncall = false; S.cur = S.rows.length ? nextPending(i - 1) : -1; }
+  if (S.cur === i) { S.oncall = false; S.cur = S.rows.length ? nextPending(i - 1) : -1; S.curNum = firstUntried(S.cur); }
   else if (S.cur > i) S.cur--;
   validate(); save(); $('editor').close(); renderAll();
   toast(`Deleted ${name}`);
@@ -532,6 +693,12 @@ function deleteContact() {
 const statusLabel = s => OC[s]?.label || META[s]?.[0] || s;
 const statusTone = s => OC[s]?.tone || META[s]?.[1] || '';
 function chip(s) { return `<span class="chip ${statusTone(s)}">${esc(statusLabel(s))}</span>`; }
+// A contact still in the queue but partway through its numbers reads "Tried 1 of 3".
+function statusText(i) {
+  const r = S.res[i], t = Object.keys(r.tried).length;
+  return r.status === 'pending' && t ? `Tried ${t} of ${phonesOf(i).length}` : statusLabel(r.status);
+}
+function chipFor(i) { return `<span class="chip ${statusTone(S.res[i].status)}">${esc(statusText(i))}</span>`; }
 
 function renderAll() { renderStats(); renderNotices(); renderWork(); renderQueue(); renderSettings(); }
 
@@ -544,17 +711,25 @@ function renderStats() {
   const cb = c(s => s === 'callback');
   $('stats').innerHTML = [
     [called, 'called'], [connected, 'connected'], [cb, 'call backs'], [pending, 'left to call'],
-  ].map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
-  const workable = total - c(s => s === 'invalid' || s === 'duplicate');
+  ].map(([v, l]) => `<div class="stat"><b>${v.toLocaleString()}</b><span>${l}</span></div>`).join('');
+  const workable = total - c(s => s === 'invalid');
   $('progress').style.width = workable ? ((workable - pending) / workable * 100) + '%' : '0';
-  $('fileName').textContent = S.sample ? 'Sample list' : `${S.file} · ${total} rows`;
+  $('fileName').textContent = S.sample ? 'Sample list' : `${S.file} · ${total.toLocaleString()} contacts`;
 }
 function renderNotices() {
   const out = [];
   if (S.sample) out.push(`<div class="notice">This is a made-up sample list so you can try the buttons. Click <b>Load spreadsheet</b> or drop a CSV/Excel file anywhere on the page to use your own contacts.</div>`);
-  if (S.map.phone < 0) out.push(`<div class="notice warn">No phone column was found. Pick it under <b>Columns &amp; dialing settings</b> below.</div>`);
+  const L = S.loadInfo;
+  if (L && (L.merged || L.dropped || L.multi)) {
+    const bits = [];
+    if (L.multi) bits.push(`<b>${L.multi.toLocaleString()}</b> contacts have more than one number. If a number isn't answered, the dialer calls the contact's next number.`);
+    if (L.merged) bits.push(`<b>${L.merged.toLocaleString()}</b> repeated rows for the same person were combined, with all their numbers.`);
+    if (L.dropped) bits.push(`<b>${L.dropped.toLocaleString()}</b> rows with no name or number (such as date dividers) were left out.`);
+    out.push(`<div class="notice">${bits.join(' ')} <button class="btn ghost" data-act="dismissInfo" style="padding:2px 10px;margin-left:4px">Got it</button></div>`);
+  }
+  if (!S.map.phones.length && S.headers.length) out.push(`<div class="notice warn">No phone column was found. Tick your phone columns under <b>Columns &amp; dialing settings</b> below.</div>`);
   const bad = S.res.filter(r => r.status === 'invalid').length;
-  if (bad && S.map.phone >= 0) out.push(`<div class="notice">${bad} contact${bad > 1 ? 's have' : ' has'} a missing or incomplete phone number and will be skipped. Filter the queue to <b>All contacts</b> to see them.</div>`);
+  if (bad && S.map.phones.length) out.push(`<div class="notice">${bad} contact${bad > 1 ? 's have' : ' has'} no usable phone number and will be skipped. Filter the queue to <b>All contacts</b> to find and edit them.</div>`);
   const h = new Date().getHours();
   if (h < 8 || h >= 21) out.push(`<div class="notice warn">It's outside 8am–9pm on your clock. US rules limit calls to those hours in the <i>contact's</i> time zone, so check where they are before dialing.</div>`);
   $('notices').innerHTML = out.join('');
@@ -575,21 +750,28 @@ function renderWork() {
       ${anyRetry ? '<button class="btn" data-act="requeue">Requeue unreached</button>' : ''}</div></div>`;
     return;
   }
-  const i = S.cur, r = S.res[i], num = phoneOf(i);
-  const skipCols = new Set(['phone', 'name', 'first', 'last', 'company'].map(k => S.map[k]));
-  const extra = S.headers.map((h, c) => [h, S.rows[i][c], c]).filter(([, v, c]) => v && !skipCols.has(c));
-  const hint = S.settings.scheme + (num || '');
+  const i = S.cur, r = S.res[i], nums = phonesOf(i);
+  const cn = Math.min(S.curNum, Math.max(0, nums.length - 1));
+  const shown = new Set([S.map.name, S.map.first, S.map.last, S.map.company, ...S.map.phones]);
+  const extra = S.headers.map((h, c) => [h, S.rows[i][c], c]).filter(([, v, c]) => v && !shown.has(c));
+  const numbers = nums.length ? `<div class="numbers">${nums.map((p, k) => {
+    const t = r.tried[p.num], cur = k === cn;
+    return `<div class="numrow${cur ? ' cur' : ''}">
+      <div class="numinfo"><span class="numlabel">${esc(p.label)}${nums.length > 1 ? ` · ${k + 1} of ${nums.length}` : ''}</span>
+        <span class="number">${esc(pretty(p.num))}</span></div>
+      ${t ? chip(t) : ''}
+      ${cur ? `<a class="call" href="${esc(S.settings.scheme + p.num)}" data-act="dial" data-k="${k}" title="Call (C)">${PHONE_SVG}${t ? 'Call again' : 'Call'}</a>
+        <button class="btn ghost" data-act="copy" data-k="${k}">Copy</button>`
+      : `<button class="btn" data-act="dial" data-k="${k}">Call</button>`}
+    </div>`;
+  }).join('')}</div>` : `<p class="nonum">No usable phone number. Tap <b>Edit contact</b> to add one.</p>`;
   w.innerHTML = `<div class="contact">
     <div class="who">
-      <span class="pos mono">Contact ${i + 1} of ${S.rows.length} ${r.status !== 'pending' ? '· ' + chip(r.status) : ''}${r.attempts ? ` · ${r.attempts} attempt${r.attempts > 1 ? 's' : ''}` : ''}</span>
+      <span class="pos mono">Contact ${i + 1} of ${S.rows.length.toLocaleString()} ${r.status !== 'pending' || Object.keys(r.tried).length ? '· ' + chipFor(i) : ''}${r.attempts ? ` · ${r.attempts} call${r.attempts > 1 ? 's' : ''}` : ''}</span>
       <h2>${esc(nameOf(i))}</h2>
-      ${col(i, 'company') ? `<span class="company">${esc(col(i, 'company'))}</span>` : ''}
+      ${col(i, 'company') && col(i, 'company') !== nameOf(i) ? `<span class="company">${esc(col(i, 'company'))}</span>` : ''}
     </div>
-    <div class="dialrow">
-      <span class="number">${num ? esc(pretty(num)) : '<span style="color:var(--bad)">No usable number</span>'}</span>
-      ${num ? `<a class="call" href="${esc(hint)}" data-act="dial" title="Call (C)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1z"/></svg>${r.attempts ? 'Call again' : 'Call'}</a>
-        <button class="btn ghost" data-act="copy">Copy number</button>` : ''}
-    </div>
+    ${numbers}
     <div class="phase" id="phase"></div>
     <div style="display:grid;gap:8px">
       <span class="label">How did it go?</span>
@@ -599,18 +781,21 @@ function renderWork() {
       <textarea id="notes" placeholder="Who you spoke to, next steps, best time to call back…">${esc(r.notes)}</textarea></label>
     <div class="nav">
       <button class="btn" data-act="back">← Back</button>
-      <button class="btn" data-act="skip">Skip for now</button>
+      <button class="btn" data-act="skip">Skip contact</button>
       <button class="btn ghost" data-act="edit" style="margin-left:auto">Edit contact</button>
     </div>
     ${extra.length ? `<div style="display:grid;gap:6px"><span class="label">From your spreadsheet</span><dl class="details">${extra.map(([h, v]) => `<dt>${esc(h)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>` : ''}
   </div>`;
   renderPhase();
+  // A new contact on screen: bring its numbers into view if the page is scrolled past them.
+  if (i !== lastShown) { lastShown = i; if (w.getBoundingClientRect().top < 0) w.scrollIntoView({ block: 'start' }); }
 }
 function renderPhase() {
   const p = $('phase'); if (!p) return;
-  if (timer) p.innerHTML = `<span>Calling <b>${esc(nameOf(S.cur))}</b> in <b class="mono">${countdown}s</b></span><button class="btn" data-act="dial">Call now</button><button class="btn ghost" data-act="pause">Pause (P)</button>`;
-  else if (S.oncall) p.innerHTML = `<span class="live">Call started</span><span>Log the outcome when you hang up. No call prompt? Tap Call.</span>`;
-  else p.innerHTML = S.settings.auto ? `<span>Auto-dial is on. After you log an outcome, the next call starts in ${+S.settings.delay || 0}s.</span>` : `<span>Auto-dial is off. Press Call for each contact.</span>`;
+  const ph = S.cur >= 0 ? curPhone() : null, on = ph ? ` on <b>${esc(ph.label)}</b>` : '';
+  if (timer) p.innerHTML = `<span>Calling <b>${esc(nameOf(S.cur))}</b>${on} in <b class="mono">${countdown}s</b></span><button class="btn" data-act="dial">Call now</button><button class="btn ghost" data-act="pause">Pause (P)</button>`;
+  else if (S.oncall) p.innerHTML = `<span class="live">Calling${on}</span><span>Log the outcome when you hang up. No call prompt? Tap Call.</span>`;
+  else p.innerHTML = S.settings.auto ? `<span>Auto-dial is on. After you log an outcome, the next number is called in ${+S.settings.delay || 0}s.</span>` : `<span>Auto-dial is off. Press Call for each number.</span>`;
 }
 function renderQueue() {
   const f = $('filter').value;
@@ -618,30 +803,43 @@ function renderQueue() {
   const items = [];
   S.res.forEach((r, i) => {
     if (!keep(r.status)) return;
-    const num = phoneOf(i);
-    items.push(`<li data-i="${i}" class="${i === S.cur ? 'cur' : ''}"><span class="n mono">${i + 1}</span><span style="min-width:0"><span class="nm">${esc(nameOf(i))}</span><span class="ph mono">${esc(num ? pretty(num) : (S.map.phone >= 0 ? S.rows[i][S.map.phone] : '') || '—')}</span></span>${chip(r.status)}</li>`);
+    const nums = phonesOf(i);
+    const sub = nums.length ? pretty(nums[0].num) + (nums.length > 1 ? ` +${nums.length - 1} more` : '') : 'No number';
+    items.push(`<li data-i="${i}" class="${i === S.cur ? 'cur' : ''}"><span class="n mono">${i + 1}</span><span style="min-width:0"><span class="nm">${esc(nameOf(i))}</span><span class="ph mono">${esc(sub)}</span></span>${chipFor(i)}</li>`);
   });
   $('qlist').innerHTML = items.join('') || `<li style="cursor:default;display:block;color:var(--muted)">Nothing matches this filter.</li>`;
-  $('qlist').querySelector('.cur')?.scrollIntoView({ block: 'nearest' });
+  // Scroll only the queue list, never the page.
+  const ql = $('qlist'), cur = ql.querySelector('.cur');
+  if (cur && (cur.offsetTop < ql.scrollTop || cur.offsetTop + cur.offsetHeight > ql.scrollTop + ql.clientHeight))
+    ql.scrollTop = cur.offsetTop - ql.clientHeight / 3;
 }
 function renderSettings() {
   const opts = sel => `<option value="-1">(none)</option>` + S.headers.map((h, i) => `<option value="${i}"${i === sel ? ' selected' : ''}>${esc(h)}</option>`).join('');
-  $('mapFields').innerHTML = [['phone', 'Phone number column'], ['name', 'Full name column'], ['first', 'First name column'], ['last', 'Last name column'], ['company', 'Company column']]
-    .map(([k, l]) => `<label class="field"><span class="label">${l}</span><select id="map-${k}" data-map="${k}">${opts(S.map[k])}</select></label>`).join('');
+  $('mapFields').innerHTML = `<div class="field" style="grid-column:1/-1"><span class="label">Phone number columns</span>
+      <div class="colpick">${S.headers.map((h, c) => `<label class="check"><input type="checkbox" data-phonecol="${c}"${S.map.phones.includes(c) ? ' checked' : ''}> ${esc(h)}</label>`).join('')}</div>
+      <small>Every ticked column is dialed, left to right. A box can hold several numbers separated by commas.</small></div>` +
+    [['name', 'Full name column'], ['first', 'First name column'], ['last', 'Last name column'], ['company', 'Business column']]
+      .map(([k, l]) => `<label class="field"><span class="label">${l}</span><select id="map-${k}" data-map="${k}">${opts(S.map[k])}</select></label>`).join('');
   $('scheme').value = S.settings.scheme; $('cc').value = S.settings.cc; $('delay').value = S.settings.delay;
-  $('auto').checked = S.settings.auto; $('skipDupes').checked = S.settings.skipDupes;
+  $('auto').checked = S.settings.auto; $('combine').checked = S.settings.combine;
 }
 
-let toastT;
+let toastT, lastShown = -1;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
 
 /* ---------- events ---------- */
+function afterMapChange() {
+  phoneCache = new WeakMap(); validate();
+  if (S.cur < 0 || S.res[S.cur]?.status === 'invalid') S.cur = nextPending(-1);
+  S.curNum = firstUntried(S.cur);
+  save(); renderStats(); renderNotices(); renderWork(); renderQueue();
+}
 document.addEventListener('click', e => {
   const oc = e.target.closest('[data-oc]'); if (oc) { logOutcome(oc.dataset.oc); return; }
   const li = e.target.closest('#qlist li[data-i]'); if (li) { jump(+li.dataset.i); return; }
   const a = e.target.closest('[data-act]'); if (!a) return;
-  const act = a.dataset.act;
-  if (act === 'dial') { e.preventDefault(); dial(); }
+  const act = a.dataset.act, k = a.dataset.k !== undefined ? +a.dataset.k : undefined;
+  if (act === 'dial') { e.preventDefault(); dial(k); }
   else if (act === 'skip') skip();
   else if (act === 'back') back();
   else if (act === 'pause') pause();
@@ -650,23 +848,28 @@ document.addEventListener('click', e => {
   else if (act === 'add') openEditor(-1);
   else if (act === 'edit') openEditor(S.cur);
   else if (act === 'edCancel') $('editor').close();
+  else if (act === 'dismissInfo') { S.loadInfo = null; save(); renderNotices(); }
   else if (act === 'copy') {
-    const n = phoneOf(S.cur);
+    const n = (phonesOf(S.cur)[k ?? S.curNum] || {}).num || '';
     navigator.clipboard?.writeText(n).then(() => toast('Number copied'), () => toast(n));
   }
 });
 document.addEventListener('input', e => {
-  if (e.target.id === 'notes' && S.cur >= 0) { S.res[S.cur].notes = e.target.value; save(); }
+  if (e.target.id === 'notes' && S.cur >= 0) { S.res[S.cur].notes = e.target.value; saveSoon(); }
 });
 document.addEventListener('change', e => {
   const t = e.target;
-  if (t.dataset.map) { S.map[t.dataset.map] = +t.value; validate(); if (S.cur < 0 || S.res[S.cur].status === 'invalid') S.cur = nextPending(-1); save(); renderStats(); renderNotices(); renderWork(); renderQueue(); }
+  if (t.dataset.phonecol !== undefined) {
+    S.map.phones = [...document.querySelectorAll('[data-phonecol]')].filter(x => x.checked).map(x => +x.dataset.phonecol);
+    afterMapChange();
+  }
+  else if (t.dataset.map) { S.map[t.dataset.map] = +t.value; afterMapChange(); }
   else if (t.id === 'filter') renderQueue();
-  else if (['scheme', 'cc', 'delay', 'auto', 'skipDupes'].includes(t.id)) {
+  else if (['scheme', 'cc', 'delay', 'auto', 'combine'].includes(t.id)) {
     S.settings[t.id] = t.type === 'checkbox' ? t.checked : t.id === 'delay' ? Math.max(0, +t.value || 0) : t.value;
-    if (t.id === 'cc' || t.id === 'skipDupes') { validate(); if (S.cur < 0) S.cur = nextPending(-1); }
     if (t.id === 'auto' && !t.checked) stopTimer();
-    save(); renderStats(); renderNotices(); renderWork(); renderQueue();
+    if (t.id === 'cc') afterMapChange();
+    else { save(); renderPhase(); }
   }
 });
 document.addEventListener('keydown', e => {
@@ -692,10 +895,17 @@ $('resetBtn').onclick = reset;
 ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); document.body.classList.add('drop-active'); }));
 ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === 'drop' || !e.relatedTarget) document.body.classList.remove('drop-active'); }));
 document.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) readFile(f); });
+window.addEventListener('pagehide', save);
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 S = restore();
-if (S) { S.oncall = false; renderAll(); } else load(SAMPLE_HEADERS, SAMPLE_ROWS, 'sample', true);
+if (S) {
+  // Lists saved by the earlier one-phone-column version.
+  if (!Array.isArray(S.map.phones)) S.map.phones = S.map.phone >= 0 ? [S.map.phone] : [];
+  if (S.settings.combine === undefined) S.settings.combine = true;
+  S.curNum ||= 0; S.oncall = false;
+  validate(); renderAll();
+} else load(SAMPLE_HEADERS, SAMPLE_ROWS, 'sample', true);
 })();
 </script>
 </body>
