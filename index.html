@@ -226,6 +226,7 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
       </label>
       <div class="field"><span class="label">Auto-dial</span>
         <label class="check"><input type="checkbox" id="auto"> Dial the next contact automatically</label>
+        <small id="autoHint" hidden>On phones and tablets the next number is lined up for you to tap, since phones only start calls from a tap.</small>
         <label class="check"><input type="checkbox" id="combine"> Combine repeated rows for the same person</label>
         <small>Applies the next time you load a spreadsheet.</small>
       </div>
@@ -490,20 +491,66 @@ function tidy(rows, combine) {
   out.forEach(r => { for (let c = 0; c < H.length; c++) if (r[c] == null) r[c] = ''; });
   return { rows: out, dropped, merged };
 }
+const RESULT_COLS = ['All Numbers', 'Outcome', 'Call History', 'Notes', 'Attempts', 'Last Called'];
+const pad2 = n => String(n).padStart(2, '0');
+// "2026-10-16 14:05" in local time: readable in Excel and readable back by the dialer.
+function stamp(iso) {
+  if (!iso) return '';
+  const d = new Date(iso); if (isNaN(d)) return '';
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+}
+function unstamp(text) {
+  const t = String(text || '').trim(); if (!t) return '';
+  const m = t.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})/);
+  const d = m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : new Date(t);
+  return isNaN(d) ? '' : d.toISOString();
+}
+const LABEL_TO_STATUS = { ...Object.fromEntries(OUTCOMES.map(o => [o.label.toLowerCase(), o.k])), 'not called': 'pending', skipped: 'skipped', 'no number': 'invalid' };
+function resFromResults([, outcome, history, notes, attempts, last]) {
+  const r = newRes();
+  r.status = LABEL_TO_STATUS[String(outcome || '').trim().toLowerCase()] || 'pending';
+  r.notes = String(notes || '');
+  r.attempts = parseInt(attempts, 10) || 0;
+  r.at = unstamp(last);
+  String(history || '').split(' | ').forEach(entry => {
+    const bits = entry.split(' · ');
+    if (bits.length !== 4) return;
+    const k = LABEL_TO_STATUS[bits[3].trim().toLowerCase()], num = norm(bits[2]);
+    if (!OC[k] || !num) return;
+    r.log.push({ n: num, l: bits[1].trim(), k, at: unstamp(bits[0]) });
+    r.tried[num] = k;
+  });
+  return r;
+}
 function load(headers, rows, file, sample) {
   const settings = S ? S.settings : fresh().settings;
   S = fresh(); S.settings = settings;
+  // A results file exported by this dialer: strip its progress columns and restore the progress.
+  const isResults = headers.length > RESULT_COLS.length && RESULT_COLS.every((h, k) => headers[headers.length - RESULT_COLS.length + k] === h);
+  let progress = null;
+  if (isResults) {
+    const n = headers.length - RESULT_COLS.length;
+    progress = rows.map(r => r.slice(n));
+    headers = headers.slice(0, n); rows = rows.map(r => r.slice(0, n));
+  }
   Object.assign(S, { headers, file, sample });
   phoneCache = new WeakMap();
   S.map = detect(headers, rows);
-  const t = tidy(rows, settings.combine);
-  S.rows = t.rows;
-  S.res = S.rows.map(newRes);
-  S.loadInfo = sample ? null : { rows: rows.length, dropped: t.dropped, merged: t.merged, multi: S.rows.filter((_, i) => phonesOf(i).length > 1).length };
+  if (progress) {
+    S.rows = rows;                                   // already combined when it was first loaded
+    S.res = progress.map(resFromResults);
+    const called = S.res.filter(r => r.status !== 'pending' && r.status !== 'invalid' || r.log.length).length;
+    S.loadInfo = { restored: called, total: rows.length };
+  } else {
+    const t = tidy(rows, settings.combine);
+    S.rows = t.rows;
+    S.res = S.rows.map(newRes);
+    S.loadInfo = sample ? null : { rows: rows.length, dropped: t.dropped, merged: t.merged, multi: S.rows.filter((_, i) => phonesOf(i).length > 1).length };
+  }
   validate();
   S.cur = nextPending(-1); S.curNum = firstUntried(S.cur);
   stopTimer(); save(); renderAll();
-  if (!sample && S.rows.length) toast(`Loaded ${S.rows.length} contacts from ${file}`);
+  if (!sample && S.rows.length) toast(progress ? `Picked up where you left off in ${file}` : `Loaded ${S.rows.length} contacts from ${file}`);
   if (!S.map.phones.length) $('settings').open = true;
 }
 function validate() {
@@ -530,6 +577,10 @@ function nextUntried(i, after) {
   for (let k = 0; k < after; k++) if (!tried[nums[k].num]) return k;
   return -1;
 }
+// Phones and tablets only start a call from a tap, so there the next number is lined up instead.
+const HANDHELD = /Android|iPhone|iPod/i.test(navigator.userAgent) || (/iPad|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
+const tapToCall = () => HANDHELD && S.settings.scheme !== 'twilio';
+function autoNext() { if (tapToCall()) renderPhase(); else startTimer(); }
 const curPhone = () => { const nums = phonesOf(S.cur); return nums[S.curNum] || nums[0]; };
 
 /* ---------- actions ---------- */
@@ -576,7 +627,7 @@ function logOutcome(k) {
     S.curNum = nextNum; r.status = 'pending';
     save(); renderAll();
     toast(`${OC[k].label} on ${p.label}. Next: ${nums[nextNum].label}`);
-    if (S.settings.auto) startTimer();
+    if (S.settings.auto) autoNext();
     return;
   }
   r.status = NUM_LEVEL.has(k) ? bestOf(i) : k;
@@ -584,7 +635,7 @@ function logOutcome(k) {
   S.cur = nxt; S.curNum = firstUntried(nxt);
   save(); renderAll();
   toast(`${nameOf(i)}: ${statusLabel(r.status)}${NUM_LEVEL.has(k) && nums.length > 1 ? ` (all ${nums.length} numbers tried)` : ''}`);
-  if (nxt >= 0 && S.settings.auto) startTimer();
+  if (nxt >= 0 && S.settings.auto) autoNext();
 }
 function skip() {
   const i = S.cur; if (i < 0) return;
@@ -637,10 +688,10 @@ function exportCSV() {
   const lines = [head.map(q).join(',')];
   S.rows.forEach((row, i) => {
     const r = S.res[i];
-    const history = r.log.map(e => `${new Date(e.at).toLocaleString()} ${e.l} ${pretty(e.n)}: ${OC[e.k]?.label || e.k}`).join(' | ');
-    lines.push([...row, phonesOf(i).map(p => pretty(p.num)).join('; '), statusText(i), history, r.notes, r.attempts, r.at ? new Date(r.at).toLocaleString() : ''].map(q).join(','));
+    const history = r.log.map(e => [stamp(e.at), e.l, pretty(e.n), OC[e.k]?.label || e.k].join(' · ')).join(' | ');
+    lines.push([...row, phonesOf(i).map(p => pretty(p.num)).join('; '), statusText(i), history, r.notes, r.attempts, stamp(r.at)].map(q).join(','));
   });
-  const name = (S.file || 'contacts').replace(/\.[^.]+$/, '') + '-results.csv';
+  const name = (S.file || 'contacts').replace(/\.[^.]+$/, '').replace(/-results$/, '') + '-results.csv';
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv' });
   const file = typeof File === 'function' ? new File([blob], name, { type: 'text/csv' }) : null;
   const touchApple = /iPad|iPhone|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
@@ -898,7 +949,9 @@ function renderNotices() {
   const out = [];
   if (S.sample) out.push(`<div class="notice">This is a made-up sample list so you can try the buttons. Click <b>Load spreadsheet</b> or drop a CSV/Excel file anywhere on the page to use your own contacts.</div>`);
   const L = S.loadInfo;
-  if (L && (L.merged || L.dropped || L.multi)) {
+  if (L && L.restored !== undefined) {
+    out.push(`<div class="notice">Picked up where you left off: <b>${L.restored.toLocaleString()}</b> of ${L.total.toLocaleString()} contacts already have calls logged, with their notes and call history. <button class="btn ghost" data-act="dismissInfo" style="padding:2px 10px;margin-left:4px">Got it</button></div>`);
+  } else if (L && (L.merged || L.dropped || L.multi)) {
     const bits = [];
     if (L.multi) bits.push(`<b>${L.multi.toLocaleString()}</b> contacts have more than one number. If a number isn't answered, the dialer calls the contact's next number.`);
     if (L.merged) bits.push(`<b>${L.merged.toLocaleString()}</b> repeated rows for the same person were combined, with all their numbers.`);
@@ -983,6 +1036,8 @@ function renderPhase() {
   }
   else if (TW.last) p.innerHTML = `<span>${esc(TW.last)}</span>`;
   else if (S.oncall && usingTwilio()) p.innerHTML = `<span class="live">Starting call${on}</span>`;
+  else if (S.oncall && tapToCall()) p.innerHTML = `<span class="live">Calling${on}</span><span>When you hang up, come back here and log how it went.</span>`;
+  else if (tapToCall()) p.innerHTML = `<span>Tap <b>Call</b> to dial${on}. After the call, come back and log how it went.</span>`;
   else if (S.oncall) p.innerHTML = `<span class="live">Calling${on}</span><span>Log the outcome when you hang up. No call prompt? Tap Call.</span>`;
   else p.innerHTML = S.settings.auto ? `<span>Auto-dial is on. After you log an outcome, the next number is called in ${+S.settings.delay || 0}s.</span>` : `<span>Auto-dial is off. Press Call for each number.</span>`;
 }
@@ -1013,6 +1068,7 @@ function renderSettings() {
   $('auto').checked = S.settings.auto; $('combine').checked = S.settings.combine;
   $('twUrl').value = S.settings.twUrl; $('twPin').value = S.settings.twPin; $('twRing').value = S.settings.twRing;
   $('autoLog').checked = S.settings.autoLog;
+  $('autoHint').hidden = !tapToCall();
   $('twilioSet').hidden = !usingTwilio();
   $('schemeHint').textContent = usingTwilio()
     ? 'Calls go out over the internet through your Twilio number. Use a headset.'
