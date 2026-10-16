@@ -151,6 +151,18 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
 .ed-err { color: var(--bad); margin: 0; font-size: 14px; }
 .btn.danger { color: var(--bad); margin-left: auto; }
 [hidden] { display: none !important; }
+.line-chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.line-chip.ready { color: var(--good); border-color: currentColor; }
+.line-chip.error { color: var(--bad); border-color: currentColor; }
+.line-chip.oncall { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+.calltime { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.phase .btn { color: var(--ink); }
+.btn.hangup { background: var(--bad); border-color: var(--bad); color: #fff; font-weight: 600; }
+.btn.on { background: var(--accent-soft); border-color: var(--accent); }
+.keypad { display: grid; grid-template-columns: repeat(3, 56px); gap: 6px; }
+.keypad button { height: 44px; font: 500 18px var(--f-mono); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.keypad button:active { background: var(--accent-soft); }
+.twilio-set a { color: var(--accent); }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 6px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; }
 .toast.show { opacity: 1; }
 </style>
@@ -165,6 +177,7 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
       <button class="btn" data-act="add">+ Add contact</button>
       <span class="file-name" id="fileName"></span>
     </div>
+    <span class="line-chip" id="lineChip" hidden></span>
     <div class="stats" id="stats"></div>
   </header>
   <div class="progress"><i id="progress"></i></div>
@@ -196,11 +209,12 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
     <div class="grid-set">
       <label class="field"><span class="label">Call using</span>
         <select id="scheme">
+          <option value="twilio">Built-in calling (Twilio, through your headset)</option>
           <option value="tel:">tel: (default phone app, Teams, Zoom, RingCentral)</option>
           <option value="callto:">callto: (Skype / some softphones)</option>
           <option value="sip:">sip: (SIP softphones)</option>
         </select>
-        <small>Which app opens depends on your computer's default app for phone links.</small>
+        <small id="schemeHint">Which app opens depends on your computer's default app for phone links.</small>
       </label>
       <label class="field"><span class="label">Default country code</span>
         <input id="cc" class="mono" inputmode="numeric" maxlength="4">
@@ -216,13 +230,32 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
         <small>Applies the next time you load a spreadsheet.</small>
       </div>
     </div>
+    <div class="grid-set twilio-set" id="twilioSet" hidden>
+      <label class="field"><span class="label">Twilio Functions address</span>
+        <input id="twUrl" class="mono" type="url" placeholder="https://call-list-dialer-1234.twil.io" autocomplete="off" spellcheck="false">
+        <small>Shown at the bottom of your Twilio service. New here? Follow the <a href="setup.html" target="_blank" rel="noopener">setup guide</a>.</small>
+      </label>
+      <label class="field"><span class="label">Dialer PIN</span>
+        <input id="twPin" type="password" autocomplete="off">
+        <small>The DIALER_PIN you saved in Twilio. Stored only in this browser.</small>
+      </label>
+      <label class="field"><span class="label">Ring for (seconds)</span>
+        <input id="twRing" class="mono" type="number" min="10" max="60">
+        <small>About 5 seconds per ring. Unanswered after this counts as No answer.</small>
+      </label>
+      <div class="field"><span class="label">Connection</span>
+        <div class="nav"><button class="btn" id="twConnect" type="button">Connect</button></div>
+        <small id="twStatus">Not connected.</small>
+        <label class="check"><input type="checkbox" id="autoLog"> Log no-answer and busy for me</label>
+      </div>
+    </div>
     <div class="grid-set" style="grid-template-columns:1fr">
       <div class="nav">
         <button class="btn" id="exportBtn">Export results (.csv)</button>
         <button class="btn ghost" id="resetBtn">Clear all outcomes</button>
         <button class="btn ghost" id="blankBtn">Start a new blank list</button>
       </div>
-      <p class="notice" style="margin:0">Keyboard: <b>C</b> call · <b>1–7</b> log outcome · <b>N</b> skip · <b>B</b> back · <b>P</b> pause countdown · <b>E</b> edit contact · <b>A</b> add contact. Shortcuts are off while you type notes. Progress is saved in this browser automatically.</p>
+      <p class="notice" style="margin:0">Keyboard: <b>C</b> call · <b>1–7</b> log outcome · <b>N</b> skip · <b>B</b> back · <b>P</b> pause countdown · <b>E</b> edit contact · <b>A</b> add contact · <b>H</b> hang up · <b>M</b> mute. Shortcuts are off while you type notes. Progress is saved in this browser automatically.</p>
     </div>
   </details>
 </div>
@@ -278,7 +311,7 @@ const newRes = () => ({ status: 'pending', notes: '', at: '', attempts: 0, tried
 
 function fresh() {
   return { file: '', sample: false, headers: [], rows: [], map: { phones: [] }, res: [], cur: 0, curNum: 0, oncall: false, loadInfo: null,
-           settings: { scheme: 'tel:', cc: '1', delay: 5, auto: true, combine: true } };
+           settings: { scheme: 'tel:', cc: '1', delay: 5, auto: true, combine: true, twUrl: '', twPin: '', twRing: 25, autoLog: true } };
 }
 function save() { clearTimeout(saveT); try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
 function saveSoon() { clearTimeout(saveT); saveT = setTimeout(save, 400); }
@@ -511,9 +544,15 @@ function dial(k) {
   if (k !== undefined) S.curNum = k;
   const p = curPhone();
   if (!p) { toast('This contact has no usable phone number.'); return; }
+  if (TW.call) { toast('A call is already in progress. Hang up first.'); return; }
   S.curNum = phonesOf(i).indexOf(p);
   const r = S.res[i];
-  r.attempts++; r.at = new Date().toISOString(); S.oncall = true;
+  r.attempts++; r.at = new Date().toISOString(); S.oncall = true; TW.last = '';
+  if (usingTwilio()) {
+    save(); renderWork(); renderQueue();
+    twCall(p).then(ok => { if (!ok) { S.oncall = false; r.attempts--; save(); renderWork(); } });
+    return;
+  }
   launch(S.settings.scheme + p.num);
   save(); renderWork(); renderQueue();
 }
@@ -523,7 +562,7 @@ function bestOf(i) {
 }
 function logOutcome(k) {
   const i = S.cur; if (i < 0) return;
-  stopTimer();
+  stopTimer(); twHangup('outcome'); TW.last = '';
   const r = S.res[i], nums = phonesOf(i), p = curPhone();
   r.notes = ($('notes')?.value ?? r.notes ?? '').trim();
   if (!r.attempts) r.attempts = 1;
@@ -549,7 +588,7 @@ function logOutcome(k) {
 }
 function skip() {
   const i = S.cur; if (i < 0) return;
-  stopTimer();
+  stopTimer(); twHangup('moved'); TW.last = '';
   if (S.res[i].status === 'pending') S.res[i].status = 'skipped';
   S.res[i].notes = ($('notes')?.value ?? S.res[i].notes).trim();
   S.oncall = false; S.cur = nextPending(i); S.curNum = firstUntried(S.cur); save(); renderAll();
@@ -561,6 +600,7 @@ function back() {
 }
 function jump(i) {
   stopTimer(); if (S.cur >= 0 && $('notes')) S.res[S.cur].notes = $('notes').value.trim();
+  if (i !== S.cur) { twHangup('moved'); TW.last = ''; }
   S.cur = i; S.curNum = firstUntried(i); S.oncall = false; save(); renderAll();
 }
 function startTimer() {
@@ -689,6 +729,144 @@ function deleteContact() {
   toast(`Deleted ${name}`);
 }
 
+/* ---------- built-in calling (Twilio) ---------- */
+// The dialer gets a short-lived token from your Twilio Functions (/token), then
+// places calls from the browser. Twilio dials the contact with answerOnBridge,
+// so 'accept' only fires when someone (or their voicemail) picks up.
+const TW = { device: null, call: null, line: 'off', lineText: '', callerId: '', answered: false, ringing: false,
+             endedBy: '', startedAt: 0, tick: null, muted: false, keypad: false, last: '', sid: '', target: null, connecting: null };
+const usingTwilio = () => S.settings.scheme === 'twilio';
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const fmtDur = sec => { sec = Math.max(0, Math.round(sec)); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
+
+function setLine(state, text) { TW.line = state; TW.lineText = text; renderLine(); }
+function renderLine() {
+  const chip = $('lineChip'); if (!chip) return;
+  chip.hidden = !usingTwilio();
+  const oncall = !!TW.call;
+  chip.className = 'line-chip ' + (oncall ? 'oncall' : TW.line);
+  chip.textContent = oncall ? (TW.answered ? 'On call' : 'Ringing…')
+    : TW.line === 'ready' ? 'Calling ready' : TW.line === 'connecting' ? 'Connecting…' : TW.line === 'error' ? 'Calling not connected' : 'Calling not connected';
+  chip.title = TW.lineText || '';
+  if ($('twStatus')) $('twStatus').textContent = TW.lineText || 'Not connected.';
+}
+function loadSdk() {
+  if (window.Twilio && window.Twilio.Device) return Promise.resolve();
+  return new Promise((ok, bad) => {
+    const tag = document.createElement('script');
+    tag.src = 'twilio.min.js';
+    tag.onload = ok;
+    tag.onerror = () => bad(new Error('Could not load the calling library. Check your internet connection and reload.'));
+    document.head.appendChild(tag);
+  });
+}
+async function twPost(path, data = {}) {
+  const base = S.settings.twUrl;
+  if (!/^https:\/\/\S+$/i.test(base || '')) throw new Error('Enter your Twilio Functions address in settings, like https://call-list-dialer-1234.twil.io');
+  if (!S.settings.twPin) throw new Error('Enter your dialer PIN in settings.');
+  let res;
+  try {
+    res = await fetch(base + path, { method: 'POST', body: new URLSearchParams({ pin: S.settings.twPin, ...data }) });
+  } catch (e) {
+    throw new Error('Could not reach your Twilio Functions. Check the address, and that you clicked Deploy All in Twilio.');
+  }
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(res.status === 401 ? 'Twilio refused the PIN. Check that it matches DIALER_PIN exactly.' : body.error || `Twilio Functions returned an error (${res.status}).`);
+  return body;
+}
+function twErrorText(err) {
+  const c = err && err.code;
+  if ([31401, 31402, 31208].includes(c)) return 'The browser blocked your microphone. Click the lock icon left of the address bar, set Microphone to Allow, then call again.';
+  if ([20101, 20104, 31204, 31205].includes(c)) return 'Your calling pass expired. Click Connect in settings.';
+  if ([31005, 31009, 53000, 53001].includes(c)) return 'Lost the connection to Twilio. Check your internet connection.';
+  return (err && (err.description || err.message)) || 'Calling error.';
+}
+function twResetConnection() {
+  if (TW.device && !TW.call) { try { TW.device.destroy(); } catch (e) {} TW.device = null; }
+  setLine('off', usingTwilio() ? 'Not connected. Click Connect.' : '');
+  // Connect right away once both the address and PIN are filled in, so a typo shows up now.
+  if (usingTwilio() && S.settings.twUrl && S.settings.twPin) twConnect().catch(() => {});
+}
+function twConnect() {
+  if (TW.connecting) return TW.connecting;
+  TW.connecting = (async () => {
+    setLine('connecting', 'Connecting to Twilio…');
+    await loadSdk();
+    const { token, callerId } = await twPost('/token');
+    TW.callerId = callerId || '';
+    if (TW.device) TW.device.updateToken(token);
+    else {
+      TW.device = new Twilio.Device(token, {
+        codecPreferences: ['opus', 'pcmu'],
+        closeProtection: 'A call is in progress. Leave the dialer anyway?',
+        logLevel: 'error',
+      });
+      TW.device.on('tokenWillExpire', () => twPost('/token').then(b => TW.device.updateToken(b.token)).catch(err => setLine('error', err.message)));
+      TW.device.on('error', err => { if (!TW.call) setLine('error', twErrorText(err)); });
+    }
+    setLine('ready', `Connected. Calls show ${TW.callerId ? pretty(TW.callerId) : 'your Twilio number'} as caller ID.`);
+  })().catch(err => { setLine('error', err.message); throw err; }).finally(() => { TW.connecting = null; });
+  return TW.connecting;
+}
+async function twCall(p) {
+  try {
+    if (!TW.device || TW.line !== 'ready') await twConnect();
+  } catch (err) { toast(err.message); $('settings').open = true; return false; }
+  Object.assign(TW, { answered: false, ringing: false, endedBy: '', muted: false, keypad: false, sid: '', target: { i: S.cur, num: p.num } });
+  let call;
+  try {
+    call = await TW.device.connect({ params: { To: p.num, Timeout: String(S.settings.twRing || 25) } });
+  } catch (err) { toast(twErrorText(err)); return false; }
+  TW.call = call;
+  call.on('ringing', () => { TW.ringing = true; TW.sid = call.parameters.CallSid || TW.sid; renderPhase(); renderLine(); });
+  call.on('accept', () => {
+    TW.answered = true; TW.startedAt = Date.now(); TW.sid = call.parameters.CallSid || TW.sid;
+    clearInterval(TW.tick);
+    TW.tick = setInterval(() => { const t = $('callTime'); if (t) t.textContent = fmtDur((Date.now() - TW.startedAt) / 1000); }, 1000);
+    renderPhase(); renderLine();
+  });
+  call.on('disconnect', () => twEnded(call));
+  call.on('cancel', () => twEnded(call));
+  call.on('error', err => { toast(twErrorText(err)); if (call.status() === 'closed') twEnded(call); });
+  call.on('warning', name => { if (name === 'constant-audio-input-level' && !call.isMuted()) toast('Your microphone seems silent. Check your headset.'); });
+  renderPhase(); renderLine();
+  return true;
+}
+function twHangup(reason) {
+  if (!TW.call) return;
+  TW.endedBy = reason;
+  TW.call.disconnect();
+}
+function twMute() {
+  if (!TW.call || !TW.answered) return;
+  TW.muted = !TW.muted; TW.call.mute(TW.muted); renderPhase();
+}
+async function twEnded(call) {
+  if (TW.call !== call) return;
+  TW.call = null; clearInterval(TW.tick);
+  const { answered, endedBy, target } = TW, sid = TW.sid || call.parameters.CallSid;
+  const secs = answered ? (Date.now() - TW.startedAt) / 1000 : 0;
+  S.oncall = false; renderLine();
+  if (endedBy === 'outcome' || endedBy === 'moved') { renderPhase(); return; }
+  if (answered) { TW.last = `Call ended after ${fmtDur(secs)}. How did it go?`; renderPhase(); return; }
+  // Nobody picked up. Ask Twilio whether it was busy, rang out, or failed.
+  TW.last = 'No one answered. Checking with Twilio…'; renderPhase();
+  let status = '';
+  for (let k = 0; k < 3 && sid; k++) {
+    if (k) await sleep(1200);
+    try { status = (await twPost('/call-status', { sid })).status; } catch (e) { break; }
+    if (!['queued', 'initiated', 'ringing', 'in-progress'].includes(status)) break;
+  }
+  const outcome = { busy: 'busy', 'no-answer': 'noanswer', canceled: 'noanswer' }[status];
+  const stillHere = S.cur === target.i && curPhone()?.num === target.num && !TW.call;
+  if (outcome && S.settings.autoLog && stillHere) { logOutcome(outcome); return; }
+  TW.last = status === 'failed' ? "The call didn't go through. The number may be disconnected. If so, log Wrong number."
+    : status === 'busy' ? 'Busy signal. Log the outcome to continue.'
+    : outcome ? 'No answer. Log the outcome to continue.'
+    : 'The call ended before anyone answered. Log the outcome to continue.';
+  if (stillHere) renderPhase();
+}
+
 /* ---------- rendering ---------- */
 const statusLabel = s => OC[s]?.label || META[s]?.[0] || s;
 const statusTone = s => OC[s]?.tone || META[s]?.[1] || '';
@@ -760,7 +938,7 @@ function renderWork() {
       <div class="numinfo"><span class="numlabel">${esc(p.label)}${nums.length > 1 ? ` · ${k + 1} of ${nums.length}` : ''}</span>
         <span class="number">${esc(pretty(p.num))}</span></div>
       ${t ? chip(t) : ''}
-      ${cur ? `<a class="call" href="${esc(S.settings.scheme + p.num)}" data-act="dial" data-k="${k}" title="Call (C)">${PHONE_SVG}${t ? 'Call again' : 'Call'}</a>
+      ${cur ? `<a class="call" href="${usingTwilio() ? '#' : esc(S.settings.scheme + p.num)}" data-act="dial" data-k="${k}" title="Call (C)">${PHONE_SVG}${t ? 'Call again' : 'Call'}</a>
         <button class="btn ghost" data-act="copy" data-k="${k}">Copy</button>`
       : `<button class="btn" data-act="dial" data-k="${k}">Call</button>`}
     </div>`;
@@ -794,6 +972,17 @@ function renderPhase() {
   const p = $('phase'); if (!p) return;
   const ph = S.cur >= 0 ? curPhone() : null, on = ph ? ` on <b>${esc(ph.label)}</b>` : '';
   if (timer) p.innerHTML = `<span>Calling <b>${esc(nameOf(S.cur))}</b>${on} in <b class="mono">${countdown}s</b></span><button class="btn" data-act="dial">Call now</button><button class="btn ghost" data-act="pause">Pause (P)</button>`;
+  else if (TW.call) {
+    const live = TW.answered;
+    p.innerHTML = `<span class="live">${live ? 'On call' : TW.ringing ? 'Ringing' : 'Connecting'}${on}</span>
+      ${live ? `<span class="calltime" id="callTime">${fmtDur((Date.now() - TW.startedAt) / 1000)}</span>` : ''}
+      <button class="btn hangup" data-act="hangup">Hang up (H)</button>
+      ${live ? `<button class="btn${TW.muted ? ' on' : ''}" data-act="mute">${TW.muted ? 'Unmute' : 'Mute'} (M)</button>
+        <button class="btn${TW.keypad ? ' on' : ''}" data-act="keypad">Keypad</button>` : ''}
+      ${live && TW.keypad ? `<div class="keypad" style="flex-basis:100%">${'123456789*0#'.split('').map(d => `<button data-act="digit" data-d="${d}">${d}</button>`).join('')}</div>` : ''}`;
+  }
+  else if (TW.last) p.innerHTML = `<span>${esc(TW.last)}</span>`;
+  else if (S.oncall && usingTwilio()) p.innerHTML = `<span class="live">Starting call${on}</span>`;
   else if (S.oncall) p.innerHTML = `<span class="live">Calling${on}</span><span>Log the outcome when you hang up. No call prompt? Tap Call.</span>`;
   else p.innerHTML = S.settings.auto ? `<span>Auto-dial is on. After you log an outcome, the next number is called in ${+S.settings.delay || 0}s.</span>` : `<span>Auto-dial is off. Press Call for each number.</span>`;
 }
@@ -822,6 +1011,13 @@ function renderSettings() {
       .map(([k, l]) => `<label class="field"><span class="label">${l}</span><select id="map-${k}" data-map="${k}">${opts(S.map[k])}</select></label>`).join('');
   $('scheme').value = S.settings.scheme; $('cc').value = S.settings.cc; $('delay').value = S.settings.delay;
   $('auto').checked = S.settings.auto; $('combine').checked = S.settings.combine;
+  $('twUrl').value = S.settings.twUrl; $('twPin').value = S.settings.twPin; $('twRing').value = S.settings.twRing;
+  $('autoLog').checked = S.settings.autoLog;
+  $('twilioSet').hidden = !usingTwilio();
+  $('schemeHint').textContent = usingTwilio()
+    ? 'Calls go out over the internet through your Twilio number. Use a headset.'
+    : "Which app opens depends on your computer's default app for phone links.";
+  renderLine();
 }
 
 let toastT, lastShown = -1;
@@ -849,6 +1045,10 @@ document.addEventListener('click', e => {
   else if (act === 'edit') openEditor(S.cur);
   else if (act === 'edCancel') $('editor').close();
   else if (act === 'dismissInfo') { S.loadInfo = null; save(); renderNotices(); }
+  else if (act === 'hangup') twHangup('hangup');
+  else if (act === 'mute') twMute();
+  else if (act === 'keypad') { TW.keypad = !TW.keypad; renderPhase(); }
+  else if (act === 'digit') { TW.call?.sendDigits(a.dataset.d); }
   else if (act === 'copy') {
     const n = (phonesOf(S.cur)[k ?? S.curNum] || {}).num || '';
     navigator.clipboard?.writeText(n).then(() => toast('Number copied'), () => toast(n));
@@ -865,11 +1065,16 @@ document.addEventListener('change', e => {
   }
   else if (t.dataset.map) { S.map[t.dataset.map] = +t.value; afterMapChange(); }
   else if (t.id === 'filter') renderQueue();
-  else if (['scheme', 'cc', 'delay', 'auto', 'combine'].includes(t.id)) {
-    S.settings[t.id] = t.type === 'checkbox' ? t.checked : t.id === 'delay' ? Math.max(0, +t.value || 0) : t.value;
+  else if (['scheme', 'cc', 'delay', 'auto', 'combine', 'twUrl', 'twPin', 'twRing', 'autoLog'].includes(t.id)) {
+    S.settings[t.id] = t.type === 'checkbox' ? t.checked
+      : t.id === 'delay' ? Math.max(0, +t.value || 0)
+      : t.id === 'twRing' ? Math.min(60, Math.max(10, +t.value || 25))
+      : t.id === 'twUrl' ? t.value.trim().replace(/\/+$/, '')
+      : t.value;
     if (t.id === 'auto' && !t.checked) stopTimer();
     if (t.id === 'cc') afterMapChange();
-    else { save(); renderPhase(); }
+    else { save(); renderSettings(); renderWork(); }
+    if (['twUrl', 'twPin'].includes(t.id) || (t.id === 'scheme' && usingTwilio())) twResetConnection();
   }
 });
 document.addEventListener('keydown', e => {
@@ -880,6 +1085,8 @@ document.addEventListener('keydown', e => {
   else if (k === 'n') skip();
   else if (k === 'b') back();
   else if (k === 'p') pause();
+  else if (k === 'h') twHangup('hangup');
+  else if (k === 'm') twMute();
   else if (k === 'e' && S.cur >= 0) openEditor(S.cur);
   else if (k === 'a') openEditor(-1);
   else return;
@@ -892,6 +1099,7 @@ $('editForm').onsubmit = saveEditor;
 $('edDelete').onclick = deleteContact;
 $('exportBtn').onclick = exportCSV;
 $('resetBtn').onclick = reset;
+$('twConnect').onclick = () => twConnect().then(() => toast('Connected. Calls are ready.'), err => toast(err.message));
 ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); document.body.classList.add('drop-active'); }));
 ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === 'drop' || !e.relatedTarget) document.body.classList.remove('drop-active'); }));
 document.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) readFile(f); });
@@ -903,9 +1111,11 @@ if (S) {
   // Lists saved by the earlier one-phone-column version.
   if (!Array.isArray(S.map.phones)) S.map.phones = S.map.phone >= 0 ? [S.map.phone] : [];
   if (S.settings.combine === undefined) S.settings.combine = true;
+  S.settings = { ...fresh().settings, ...S.settings };
   S.curNum ||= 0; S.oncall = false;
   validate(); renderAll();
 } else load(SAMPLE_HEADERS, SAMPLE_ROWS, 'sample', true);
+if (usingTwilio() && S.settings.twUrl && S.settings.twPin) twConnect().catch(() => {});
 })();
 </script>
 </body>
