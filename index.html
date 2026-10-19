@@ -120,6 +120,11 @@ textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid va
 .qlist .n { color: var(--muted); font-size: 12px; }
 .qlist .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .qlist .ph { display: block; color: var(--muted); font-size: 12px; }
+.qlist li.qgroup { display: flex; justify-content: space-between; gap: 8px; position: sticky; top: 0; z-index: 1; cursor: default; padding: 6px 14px; background: var(--sunk); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.qlist li.qgroup:hover { background: var(--sunk); }
+.tzline { font-size: 14px; color: var(--muted); }
+.tzline.off-hours { color: var(--warn); font-weight: 600; }
+.tzline .check { color: var(--warn); font-weight: 600; }
 .numbers { display: grid; gap: 8px; }
 .numrow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
 .numrow.cur { background: var(--accent-soft); border-color: var(--accent); }
@@ -189,6 +194,10 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
       <div class="qhead">
         <span class="label">Queue</span>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <select id="order" aria-label="Call order">
+            <option value="tz">Time zone: Eastern → Pacific</option>
+            <option value="file">Spreadsheet order</option>
+          </select>
           <select id="filter" aria-label="Filter queue">
             <option value="all">All contacts</option>
             <option value="pending">Not called yet</option>
@@ -305,14 +314,14 @@ const SAMPLE_ROWS = [
 ];
 
 let S;
-let timer = null, countdown = 0, phoneCache = new WeakMap(), saveT;
+let timer = null, countdown = 0, phoneCache = new WeakMap(), zoneCache = new WeakMap(), saveT;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const newRes = () => ({ status: 'pending', notes: '', at: '', attempts: 0, tried: {}, log: [] });
 
 function fresh() {
   return { file: '', sample: false, headers: [], rows: [], map: { phones: [] }, res: [], cur: 0, curNum: 0, oncall: false, loadInfo: null,
-           settings: { scheme: 'tel:', cc: '1', delay: 5, auto: true, combine: true, twUrl: '', twPin: '', twRing: 25, autoLog: true } };
+           settings: { scheme: 'tel:', cc: '1', delay: 5, auto: true, combine: true, twUrl: '', twPin: '', twRing: 25, autoLog: true, order: 'tz' } };
 }
 function save() { clearTimeout(saveT); try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
 function saveSoon() { clearTimeout(saveT); saveT = setTimeout(save, 400); }
@@ -375,8 +384,13 @@ function detect(headers, rows) {
     name: find(/^(full ?)?name$/, /contact name/, /^contact$/),
     first: find(/first/), last: find(/last|surname/),
     company: find(/company|organi[sz]ation|business|employer|account name/),
+    state: find(/^state$/, /^st$/, /\bstate\b|province/),
+    zip: find(/^zip/, /zip ?code|postal/),
+    addr: headers.findIndex(h => /address/i.test(h) && !/mail/i.test(h)),
   };
-  const taken = new Set([m.name, m.first, m.last, m.company]);
+  const full = headers.findIndex(h => /full address/i.test(h));
+  if (full >= 0) m.addr = full;
+  const taken = new Set([m.name, m.first, m.last, m.company, m.state, m.zip, m.addr]);
   const sample = rows.slice(0, 300);
   // Every phone-like column: by heading, or because most of its values are phone numbers.
   m.phones = headers.map((_, c) => c).filter(c => {
@@ -548,6 +562,9 @@ function load(headers, rows, file, sample) {
     S.loadInfo = sample ? null : { rows: rows.length, dropped: t.dropped, merged: t.merged, multi: S.rows.filter((_, i) => phonesOf(i).length > 1).length };
   }
   validate();
+  zoneCache = new WeakMap();
+  S.res.forEach((r, i) => { r.src = i; });
+  applyOrder();
   S.cur = nextPending(-1); S.curNum = firstUntried(S.cur);
   stopTimer(); save(); renderAll();
   if (!sample && S.rows.length) toast(progress ? `Picked up where you left off in ${file}` : `Loaded ${S.rows.length} contacts from ${file}`);
@@ -707,7 +724,7 @@ function exportCSV() {
 }
 
 /* ---------- adding & editing contacts ---------- */
-const BLANK_HEADERS = ['Name', 'Company', 'Phone', 'Alt Phone', 'Email'];
+const BLANK_HEADERS = ['Name', 'Company', 'Phone', 'Alt Phone', 'Email', 'State', 'ZIP'];
 let editing = -1, delArmed = false, blankArmed = false;
 
 function startBlank() {
@@ -760,11 +777,12 @@ function saveEditor(e) {
   let idx = editing;
   if (idx < 0) {
     S.rows.push(vals);
-    S.res.push(newRes());
+    S.res.push({ ...newRes(), src: S.res.reduce((m, r) => Math.max(m, r.src ?? -1), -1) + 1 });
     idx = S.rows.length - 1;
   } else S.rows[idx] = vals;
   validate();
   if (S.res[idx].status === 'pending' && (S.cur < 0 || (editing < 0 && $('edFront').checked && !S.oncall))) S.cur = idx;
+  applyOrder(); idx = S.rows.indexOf(vals);
   if (S.cur === idx) S.curNum = firstUntried(idx);
   save(); $('editor').close(); renderAll();
   toast(editing < 0 ? `Added ${nameOf(idx)}` : `Saved ${nameOf(idx)}`);
@@ -778,6 +796,114 @@ function deleteContact() {
   else if (S.cur > i) S.cur--;
   validate(); save(); $('editor').close(); renderAll();
   toast(`Deleted ${name}`);
+}
+
+/* ---------- time zones, from the contact's address ---------- */
+// East to west. Contacts are called in this order when "Time zone" order is on.
+const ZONES = [
+  { k: 'AT', name: 'Atlantic', tz: 'America/Puerto_Rico' },
+  { k: 'ET', name: 'Eastern', tz: 'America/New_York' },
+  { k: 'CT', name: 'Central', tz: 'America/Chicago' },
+  { k: 'MT', name: 'Mountain', tz: 'America/Denver' },
+  { k: 'PT', name: 'Pacific', tz: 'America/Los_Angeles' },
+  { k: 'AK', name: 'Alaska', tz: 'America/Anchorage' },
+  { k: 'HT', name: 'Hawaii', tz: 'Pacific/Honolulu' },
+  { k: 'UN', name: 'No address', tz: null },
+];
+const ZONE_BY_KEY = Object.fromEntries(ZONES.map(z => [z.k, z]));
+const ZONE_RANK = Object.fromEntries(ZONES.map((z, n) => [z.k, n]));
+const STATE_ZONE = {};
+'CT DE DC FL GA IN KY ME MD MA MI NH NJ NY NC OH PA RI SC VT VA WV'.split(' ').forEach(st => { STATE_ZONE[st] = 'ET'; });
+'AL AR IL IA KS LA MN MS MO NE ND OK SD TN TX WI'.split(' ').forEach(st => { STATE_ZONE[st] = 'CT'; });
+'AZ CO ID MT NM UT WY'.split(' ').forEach(st => { STATE_ZONE[st] = 'MT'; });
+'CA NV OR WA'.split(' ').forEach(st => { STATE_ZONE[st] = 'PT'; });
+Object.assign(STATE_ZONE, { AK: 'AK', HI: 'HT', PR: 'AT', VI: 'AT' });
+const STATE_NAMES = { alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO', connecticut: 'CT', delaware: 'DE',
+  'district of columbia': 'DC', florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID', illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS',
+  kentucky: 'KY', louisiana: 'LA', maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS',
+  missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ', 'new mexico': 'NM', 'new york': 'NY',
+  'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH', oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI',
+  'south carolina': 'SC', 'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT', virginia: 'VA', washington: 'WA',
+  'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY', 'puerto rico': 'PR' };
+// First three ZIP digits -> state (USPS prefix ranges).
+const ZIP3 = [[5,5,'NY'],[6,7,'PR'],[8,8,'VI'],[9,9,'PR'],[10,27,'MA'],[28,29,'RI'],[30,38,'NH'],[39,49,'ME'],[50,54,'VT'],[55,55,'MA'],[56,59,'VT'],
+  [60,69,'CT'],[70,89,'NJ'],[100,149,'NY'],[150,196,'PA'],[197,199,'DE'],[200,200,'DC'],[201,201,'VA'],[202,205,'DC'],[206,219,'MD'],
+  [220,246,'VA'],[247,268,'WV'],[270,289,'NC'],[290,299,'SC'],[300,319,'GA'],[320,349,'FL'],[350,369,'AL'],[370,385,'TN'],[386,397,'MS'],
+  [398,399,'GA'],[400,427,'KY'],[430,459,'OH'],[460,479,'IN'],[480,499,'MI'],[500,528,'IA'],[530,549,'WI'],[550,567,'MN'],[569,569,'DC'],
+  [570,577,'SD'],[580,588,'ND'],[590,599,'MT'],[600,629,'IL'],[630,658,'MO'],[660,679,'KS'],[680,693,'NE'],[700,714,'LA'],[716,729,'AR'],
+  [730,732,'OK'],[733,733,'TX'],[734,749,'OK'],[750,799,'TX'],[800,816,'CO'],[820,831,'WY'],[832,838,'ID'],[840,847,'UT'],[850,865,'AZ'],
+  [870,884,'NM'],[885,885,'TX'],[889,898,'NV'],[900,961,'CA'],[967,968,'HI'],[970,979,'OR'],[980,994,'WA'],[995,999,'AK']];
+const zipState = p => (ZIP3.find(([a, b]) => p >= a && p <= b) || [])[2] || null;
+// States that span two time zones, split by ZIP prefix.
+const SPLIT = {
+  FL: p => (p === 324 || p === 325) ? 'CT' : 'ET',              // panhandle
+  TN: p => (p >= 373 && p <= 379) ? 'ET' : 'CT',                // East Tennessee
+  KY: p => (p >= 420 && p <= 424) ? 'CT' : 'ET',                // Western Kentucky
+  IN: p => [463, 464, 476, 477].includes(p) ? 'CT' : 'ET',      // Gary and Evansville areas
+  TX: p => (p === 798 || p === 799 || p === 885) ? 'MT' : 'CT', // El Paso
+  ID: p => (p === 835 || p === 838) ? 'PT' : 'MT',              // North Idaho
+  OR: p => p === 979 ? 'MT' : 'PT',                             // Malheur County
+  ND: p => p === 586 ? 'MT' : 'CT',
+  SD: p => p === 577 ? 'MT' : 'CT',
+  NE: p => p === 693 ? 'MT' : 'CT',
+};
+function zoneForState(st, p) {
+  let k = STATE_ZONE[st]; if (!k) return null;
+  if (p != null && SPLIT[st] && zipState(p) === st) k = SPLIT[st](p);
+  return k;
+}
+function normState(v) {
+  const t = String(v || '').trim().replace(/\./g, '');
+  if (t.length === 2 && STATE_ZONE[t.toUpperCase()]) return t.toUpperCase();
+  return STATE_NAMES[t.toLowerCase()] || '';
+}
+function zip3Of(v) {
+  const m = String(v || '').trim().match(/^(\d{3,5})(-\d{1,4})?$/);
+  return m ? +m[1].padStart(5, '0').slice(0, 3) : null;
+}
+// The contact's zone from State + ZIP (or the full address). When the two disagree,
+// the later (more western) zone wins so the call never comes too early for them.
+function zoneOf(i) {
+  const row = S.rows[i]; if (!row) return { k: 'UN', st: '' };
+  let z = zoneCache.get(row); if (z) return z;
+  let st = normState(cell(row, S.map.state)), zip = cell(row, S.map.zip);
+  const addr = cell(row, S.map.addr);
+  if (addr && (!st || !zip)) {
+    const m = addr.match(/,\s*([A-Za-z][A-Za-z .]*?)\s*,?\s*(\d{3,5}(?:-\d{1,4})?)?\s*$/);
+    if (m) { if (!st) st = normState(m[1]); if (!zip && m[2]) zip = m[2]; }
+  }
+  const p = zip3Of(zip), zst = p != null ? zipState(p) : null;
+  const a = st ? zoneForState(st, p) : null, b = zst ? zoneForState(zst, p) : null;
+  if (a && b && a !== b) {
+    const k = ZONE_RANK[a] > ZONE_RANK[b] ? a : b;
+    z = { k, st: k === a ? st : zst, conflict: `State says ${st}, but ZIP ${zip} is in ${zst}` };
+  } else z = { k: a || b || 'UN', st: st || zst || '' };
+  zoneCache.set(row, z);
+  return z;
+}
+function zoneTz(z) { return z.k === 'MT' && z.st === 'AZ' ? 'America/Phoenix' : ZONE_BY_KEY[z.k].tz; }
+function localTime(tz) {
+  try { return new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }).format(new Date()); } catch (e) { return ''; }
+}
+function localHour(tz) {
+  try { return +new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hourCycle: 'h23' }).format(new Date()); } catch (e) { return 12; }
+}
+function tzLine(i) {
+  const z = zoneOf(i), tz = zoneTz(z);
+  if (!tz) return `<span class="tzline">No address on file, so their local time is unknown.</span>`;
+  const h = localHour(tz), off = h < 8 || h >= 21;
+  return `<span class="tzline${off ? ' off-hours' : ''}">${esc(z.st)} · ${esc(ZONE_BY_KEY[z.k].name)} time · ${esc(localTime(tz))} there${off ? ' · outside 8am–9pm, wait to call' : ''}</span>`
+    + (z.conflict ? ` <span class="tzline"><span class="check">Check address:</span> ${esc(z.conflict)}.</span>` : '');
+}
+// Reorders rows (and their progress) by zone, keeping spreadsheet order inside each zone.
+function applyOrder() {
+  const keep = S.cur >= 0 ? S.rows[S.cur] : null;
+  const idx = S.rows.map((_, i) => i);
+  const zr = i => S.settings.order === 'tz' ? ZONE_RANK[zoneOf(i).k] : 0;
+  idx.sort((a, b) => zr(a) - zr(b) || (S.res[a].src ?? a) - (S.res[b].src ?? b));
+  S.rows = idx.map(i => S.rows[i]); S.res = idx.map(i => S.res[i]);
+  S.cur = keep ? S.rows.indexOf(keep) : S.cur;
+  S.sortedBy = S.settings.order;
 }
 
 /* ---------- built-in calling (Twilio) ---------- */
@@ -948,6 +1074,14 @@ function renderStats() {
 function renderNotices() {
   const out = [];
   if (S.sample) out.push(`<div class="notice">This is a made-up sample list so you can try the buttons. Click <b>Load spreadsheet</b> or drop a CSV/Excel file anywhere on the page to use your own contacts.</div>`);
+  if (S.settings.order === 'tz' && !S.tzNoticeSeen && S.rows.length && !S.sample) {
+    let unclear = 0, unknown = 0;
+    S.rows.forEach((_, i) => { const z = zoneOf(i); if (z.conflict) unclear++; if (z.k === 'UN') unknown++; });
+    const bits = [`Calls are ordered by the contact's address: Eastern first, then Central, Mountain and Pacific.`];
+    if (unclear) bits.push(`<b>${unclear}</b> contact${unclear > 1 ? 's have a State and ZIP' : ' has a State and ZIP'} in different time zones. They're placed in the later zone so you never call too early, and marked "Check address".`);
+    if (unknown) bits.push(`<b>${unknown}</b> with no address ${unknown > 1 ? 'are' : 'is'} at the end.`);
+    out.push(`<div class="notice">${bits.join(' ')} <button class="btn ghost" data-act="dismissTz" style="padding:2px 10px;margin-left:4px">Got it</button></div>`);
+  }
   const L = S.loadInfo;
   if (L && L.restored !== undefined) {
     out.push(`<div class="notice">Picked up where you left off: <b>${L.restored.toLocaleString()}</b> of ${L.total.toLocaleString()} contacts already have calls logged, with their notes and call history. <button class="btn ghost" data-act="dismissInfo" style="padding:2px 10px;margin-left:4px">Got it</button></div>`);
@@ -1001,6 +1135,7 @@ function renderWork() {
       <span class="pos mono">Contact ${i + 1} of ${S.rows.length.toLocaleString()} ${r.status !== 'pending' || Object.keys(r.tried).length ? '· ' + chipFor(i) : ''}${r.attempts ? ` · ${r.attempts} call${r.attempts > 1 ? 's' : ''}` : ''}</span>
       <h2>${esc(nameOf(i))}</h2>
       ${col(i, 'company') && col(i, 'company') !== nameOf(i) ? `<span class="company">${esc(col(i, 'company'))}</span>` : ''}
+      <span id="tzLine">${tzLine(i)}</span>
     </div>
     ${numbers}
     <div class="phase" id="phase"></div>
@@ -1044,9 +1179,19 @@ function renderPhase() {
 function renderQueue() {
   const f = $('filter').value;
   const keep = s => f === 'all' ? true : f === 'pending' ? s === 'pending' : f === 'done' ? !!OC[s] : f === 'retry' ? RETRY.has(s) : s === 'callback';
-  const items = [];
+  const items = [], grouped = S.settings.order === 'tz';
+  const counts = {};
+  if (grouped) S.res.forEach((r, i) => { if (keep(r.status)) { const k = zoneOf(i).k; counts[k] = (counts[k] || 0) + 1; } });
+  let lastZone = null;
   S.res.forEach((r, i) => {
     if (!keep(r.status)) return;
+    if (grouped) {
+      const z = ZONE_BY_KEY[zoneOf(i).k];
+      if (z.k !== lastZone) {
+        lastZone = z.k;
+        items.push(`<li class="qgroup"><span>${esc(z.name)} · ${counts[z.k].toLocaleString()}</span><span>${z.tz ? esc(localTime(z.tz)) + ' there' : ''}</span></li>`);
+      }
+    }
     const nums = phonesOf(i);
     const sub = nums.length ? pretty(nums[0].num) + (nums.length > 1 ? ` +${nums.length - 1} more` : '') : 'No number';
     items.push(`<li data-i="${i}" class="${i === S.cur ? 'cur' : ''}"><span class="n mono">${i + 1}</span><span style="min-width:0"><span class="nm">${esc(nameOf(i))}</span><span class="ph mono">${esc(sub)}</span></span>${chipFor(i)}</li>`);
@@ -1062,12 +1207,14 @@ function renderSettings() {
   $('mapFields').innerHTML = `<div class="field" style="grid-column:1/-1"><span class="label">Phone number columns</span>
       <div class="colpick">${S.headers.map((h, c) => `<label class="check"><input type="checkbox" data-phonecol="${c}"${S.map.phones.includes(c) ? ' checked' : ''}> ${esc(h)}</label>`).join('')}</div>
       <small>Every ticked column is dialed, left to right. A box can hold several numbers separated by commas.</small></div>` +
-    [['name', 'Full name column'], ['first', 'First name column'], ['last', 'Last name column'], ['company', 'Business column']]
+    [['name', 'Full name column'], ['first', 'First name column'], ['last', 'Last name column'], ['company', 'Business column'],
+     ['state', 'State column (for time zone)'], ['zip', 'ZIP column (for time zone)'], ['addr', 'Full address column (for time zone)']]
       .map(([k, l]) => `<label class="field"><span class="label">${l}</span><select id="map-${k}" data-map="${k}">${opts(S.map[k])}</select></label>`).join('');
   $('scheme').value = S.settings.scheme; $('cc').value = S.settings.cc; $('delay').value = S.settings.delay;
   $('auto').checked = S.settings.auto; $('combine').checked = S.settings.combine;
   $('twUrl').value = S.settings.twUrl; $('twPin').value = S.settings.twPin; $('twRing').value = S.settings.twRing;
   $('autoLog').checked = S.settings.autoLog;
+  $('order').value = S.settings.order;
   $('autoHint').hidden = !tapToCall();
   $('twilioSet').hidden = !usingTwilio();
   $('schemeHint').textContent = usingTwilio()
@@ -1081,7 +1228,8 @@ function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add
 
 /* ---------- events ---------- */
 function afterMapChange() {
-  phoneCache = new WeakMap(); validate();
+  phoneCache = new WeakMap(); zoneCache = new WeakMap(); validate();
+  applyOrder();
   if (S.cur < 0 || S.res[S.cur]?.status === 'invalid') S.cur = nextPending(-1);
   S.curNum = firstUntried(S.cur);
   save(); renderStats(); renderNotices(); renderWork(); renderQueue();
@@ -1101,6 +1249,7 @@ document.addEventListener('click', e => {
   else if (act === 'edit') openEditor(S.cur);
   else if (act === 'edCancel') $('editor').close();
   else if (act === 'dismissInfo') { S.loadInfo = null; save(); renderNotices(); }
+  else if (act === 'dismissTz') { S.tzNoticeSeen = true; save(); renderNotices(); }
   else if (act === 'hangup') twHangup('hangup');
   else if (act === 'mute') twMute();
   else if (act === 'keypad') { TW.keypad = !TW.keypad; renderPhase(); }
@@ -1121,6 +1270,13 @@ document.addEventListener('change', e => {
   }
   else if (t.dataset.map) { S.map[t.dataset.map] = +t.value; afterMapChange(); }
   else if (t.id === 'filter') renderQueue();
+  else if (t.id === 'order') {
+    S.settings.order = t.value;
+    applyOrder();
+    if (!S.oncall && !TW.call) { stopTimer(); S.cur = nextPending(-1); S.curNum = firstUntried(S.cur); }
+    save(); renderAll();
+    toast(t.value === 'tz' ? 'Calling Eastern first, then Central, Mountain and Pacific' : 'Back to spreadsheet order');
+  }
   else if (['scheme', 'cc', 'delay', 'auto', 'combine', 'twUrl', 'twPin', 'twRing', 'autoLog'].includes(t.id)) {
     S.settings[t.id] = t.type === 'checkbox' ? t.checked
       : t.id === 'delay' ? Math.max(0, +t.value || 0)
@@ -1169,9 +1325,15 @@ if (S) {
   if (S.settings.combine === undefined) S.settings.combine = true;
   S.settings = { ...fresh().settings, ...S.settings };
   S.curNum ||= 0; S.oncall = false;
-  validate(); renderAll();
+  validate();
+  if (S.map.state === undefined) { const d = detect(S.headers, S.rows); S.map.state = d.state; S.map.zip = d.zip; S.map.addr = d.addr; }
+  S.res.forEach((r, i) => { if (r.src === undefined) r.src = i; });
+  if (S.sortedBy !== S.settings.order) { applyOrder(); S.cur = nextPending(-1); S.curNum = firstUntried(S.cur); save(); }
+  renderAll();
 } else load(SAMPLE_HEADERS, SAMPLE_ROWS, 'sample', true);
 if (usingTwilio() && S.settings.twUrl && S.settings.twPin) twConnect().catch(() => {});
+// Keep the "time there" readings current.
+setInterval(() => { if (S.cur >= 0 && $('tzLine')) $('tzLine').innerHTML = tzLine(S.cur); }, 30000);
 })();
 </script>
 </body>
