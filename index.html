@@ -204,6 +204,7 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
             <option value="done">Called</option>
             <option value="retry">No answer / busy / VM</option>
             <option value="callback">Call back</option>
+            <option value="appout">App Out</option>
           </select>
           <button class="btn ghost" id="requeueBtn" title="Put skipped, no-answer and busy contacts back in the queue">Requeue unreached</button>
         </div>
@@ -265,7 +266,7 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
         <button class="btn ghost" id="resetBtn">Clear all outcomes</button>
         <button class="btn ghost" id="blankBtn">Start a new blank list</button>
       </div>
-      <p class="notice" style="margin:0">Keyboard: <b>C</b> call · <b>1–7</b> log outcome · <b>N</b> skip · <b>B</b> back · <b>P</b> pause countdown · <b>E</b> edit contact · <b>A</b> add contact · <b>H</b> hang up · <b>M</b> mute. Shortcuts are off while you type notes. Progress is saved in this browser automatically.</p>
+      <p class="notice" style="margin:0">Keyboard: <b>C</b> call · <b>1–8</b> log outcome · <b>N</b> skip · <b>B</b> back · <b>P</b> pause countdown · <b>E</b> edit contact · <b>A</b> add contact · <b>H</b> hang up · <b>M</b> mute. Shortcuts are off while you type notes. Progress is saved in this browser automatically.</p>
     </div>
   </details>
 </div>
@@ -288,6 +289,7 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
 (() => {
 const OUTCOMES = [
   { k: 'connected', label: 'Connected',      tone: 'good' },
+  { k: 'appout',    label: 'App Out',        tone: 'good' },
   { k: 'voicemail', label: 'Left voicemail', tone: 'neutral' },
   { k: 'noanswer',  label: 'No answer',      tone: 'neutral' },
   { k: 'busy',      label: 'Busy',           tone: 'neutral' },
@@ -1062,10 +1064,11 @@ function renderStats() {
   const total = S.res.length;
   const pending = c(s => s === 'pending');
   const called = c(s => !!OC[s]);
-  const connected = c(s => s === 'connected');
+  const connected = c(s => s === 'connected' || s === 'appout');
+  const appsOut = c(s => s === 'appout');
   const cb = c(s => s === 'callback');
   $('stats').innerHTML = [
-    [called, 'called'], [connected, 'connected'], [cb, 'call backs'], [pending, 'left to call'],
+    [called, 'called'], [connected, 'connected'], [appsOut, 'apps out'], [cb, 'call backs'], [pending, 'left to call'],
   ].map(([v, l]) => `<div class="stat"><b>${v.toLocaleString()}</b><span>${l}</span></div>`).join('');
   const workable = total - c(s => s === 'invalid');
   $('progress').style.width = workable ? ((workable - pending) / workable * 100) + '%' : '0';
@@ -1178,7 +1181,7 @@ function renderPhase() {
 }
 function renderQueue() {
   const f = $('filter').value;
-  const keep = s => f === 'all' ? true : f === 'pending' ? s === 'pending' : f === 'done' ? !!OC[s] : f === 'retry' ? RETRY.has(s) : s === 'callback';
+  const keep = s => f === 'all' ? true : f === 'pending' ? s === 'pending' : f === 'done' ? !!OC[s] : f === 'retry' ? RETRY.has(s) : f === 'appout' ? s === 'appout' : s === 'callback';
   const items = [], grouped = S.settings.order === 'tz';
   const counts = {};
   if (grouped) S.res.forEach((r, i) => { if (keep(r.status)) { const k = zoneOf(i).k; counts[k] = (counts[k] || 0) + 1; } });
