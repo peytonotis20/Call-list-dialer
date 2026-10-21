@@ -203,9 +203,11 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
             <option value="pending">Not called yet</option>
             <option value="done">Called</option>
             <option value="retry">No answer / busy / VM</option>
-            <option value="callback">Call back</option>
+            <option value="connected">Connected (incl. App Out)</option>
             <option value="appout">App Out</option>
+            <option value="callback">Call back</option>
           </select>
+          <button class="btn" id="exportShownBtn" title="Save the contacts shown below, with their call results, as an Excel spreadsheet">Export</button>
           <button class="btn ghost" id="requeueBtn" title="Put skipped, no-answer and busy contacts back in the queue">Requeue unreached</button>
         </div>
       </div>
@@ -262,7 +264,8 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
     </div>
     <div class="grid-set" style="grid-template-columns:1fr">
       <div class="nav">
-        <button class="btn" id="exportBtn">Export results (.csv)</button>
+        <button class="btn" id="exportBtn">Export all results (Excel)</button>
+        <button class="btn ghost" id="exportCsvBtn">Export all results (CSV)</button>
         <button class="btn ghost" id="resetBtn">Clear all outcomes</button>
         <button class="btn ghost" id="blankBtn">Start a new blank list</button>
       </div>
@@ -507,7 +510,9 @@ function tidy(rows, combine) {
   out.forEach(r => { for (let c = 0; c < H.length; c++) if (r[c] == null) r[c] = ''; });
   return { rows: out, dropped, merged };
 }
-const RESULT_COLS = ['All Numbers', 'Outcome', 'Call History', 'Notes', 'Attempts', 'Last Called'];
+const RESULT_COLS = ['All Numbers', 'Outcome', 'Call History', 'Call Notes', 'Attempts', 'Last Called'];
+// Files exported before October 2026 called the call-notes column plain "Notes".
+const RESULT_COLS_OLD = ['All Numbers', 'Outcome', 'Call History', 'Notes', 'Attempts', 'Last Called'];
 const pad2 = n => String(n).padStart(2, '0');
 // "2026-10-16 14:05" in local time: readable in Excel and readable back by the dialer.
 function stamp(iso) {
@@ -542,7 +547,8 @@ function load(headers, rows, file, sample) {
   const settings = S ? S.settings : fresh().settings;
   S = fresh(); S.settings = settings;
   // A results file exported by this dialer: strip its progress columns and restore the progress.
-  const isResults = headers.length > RESULT_COLS.length && RESULT_COLS.every((h, k) => headers[headers.length - RESULT_COLS.length + k] === h);
+  const tail = headers.slice(-RESULT_COLS.length);
+  const isResults = headers.length > RESULT_COLS.length && [RESULT_COLS, RESULT_COLS_OLD].some(cols => cols.every((h, k) => tail[k] === h));
   let progress = null;
   if (isResults) {
     const n = headers.length - RESULT_COLS.length;
@@ -701,18 +707,25 @@ function reset() {
   S.res = S.rows.map(newRes);
   validate(); S.cur = nextPending(-1); S.curNum = firstUntried(S.cur); stopTimer(); save(); renderAll(); toast('Outcomes cleared');
 }
-function exportCSV() {
-  const q = v => /[",\n\r]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
-  const head = [...S.headers, 'All Numbers', 'Outcome', 'Call History', 'Notes', 'Attempts', 'Last Called'];
-  const lines = [head.map(q).join(',')];
-  S.rows.forEach((row, i) => {
-    const r = S.res[i];
-    const history = r.log.map(e => [stamp(e.at), e.l, pretty(e.n), OC[e.k]?.label || e.k].join(' · ')).join(' | ');
-    lines.push([...row, phonesOf(i).map(p => pretty(p.num)).join('; '), statusText(i), history, r.notes, r.attempts, stamp(r.at)].map(q).join(','));
-  });
-  const name = (S.file || 'contacts').replace(/\.[^.]+$/, '').replace(/-results$/, '') + '-results.csv';
-  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv' });
-  const file = typeof File === 'function' ? new File([blob], name, { type: 'text/csv' }) : null;
+// Queue filters, shared by the queue list and the Export button.
+const FILTERS = {
+  all: { label: 'All contacts', slug: '', test: () => true },
+  pending: { label: 'Not called yet', slug: 'not-called', test: s => s === 'pending' },
+  done: { label: 'Called', slug: 'called', test: s => !!OC[s] },
+  connected: { label: 'Connected (incl. App Out)', slug: 'connected', test: s => s === 'connected' || s === 'appout' },
+  appout: { label: 'App Out', slug: 'app-out', test: s => s === 'appout' },
+  callback: { label: 'Call back', slug: 'call-back', test: s => s === 'callback' },
+  retry: { label: 'No answer / busy / VM', slug: 'unreached', test: s => RETRY.has(s) },
+};
+const filterNow = () => FILTERS[$('filter').value] || FILTERS.all;
+function resultRow(i) {
+  const r = S.res[i];
+  const history = r.log.map(e => [stamp(e.at), e.l, pretty(e.n), OC[e.k]?.label || e.k].join(' · ')).join(' | ');
+  return [...S.rows[i], phonesOf(i).map(p => pretty(p.num)).join('; '), statusText(i), history, r.notes, r.attempts, stamp(r.at)];
+}
+// Hands a file to the person: the Share sheet on iPhone/iPad, a download elsewhere.
+function deliverFile(blob, name, type) {
+  const file = typeof File === 'function' ? new File([blob], name, { type }) : null;
   const touchApple = /iPad|iPhone|Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1;
   if (touchApple && file && navigator.canShare?.({ files: [file] })) {
     navigator.share({ files: [file], title: name }).catch(err => { if (err.name !== 'AbortError') toast('Could not export: ' + err.message); });
@@ -723,6 +736,45 @@ function exportCSV() {
   a.download = name;
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+// Exports the contacts in the current queue filter ("shown") or everyone ("all"),
+// as an Excel workbook (results + summary) or a CSV. Either file can be re-opened in the dialer.
+function exportResults(which = 'all', format = 'xlsx') {
+  const f = which === 'shown' ? filterNow() : FILTERS.all;
+  const idx = S.rows.map((_, i) => i).filter(i => f.test(S.res[i].status));
+  if (!idx.length) { toast(`No contacts match "${f.label}" yet.`); return; }
+  const head = [...S.headers, ...RESULT_COLS];
+  const rows = idx.map(resultRow);
+  const base = (S.file || 'contacts').replace(/\.[^.]+$/, '').replace(/-results(-[a-z-]+)?$/, '') + '-results' + (f.slug ? '-' + f.slug : '');
+  if (format === 'csv' || !window.XLSX) {
+    const q = v => /[",\n\r]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
+    const text = '﻿' + [head, ...rows].map(r => r.map(q).join(',')).join('\r\n');
+    deliverFile(new Blob([text], { type: 'text/csv' }), base + '.csv', 'text/csv');
+  } else {
+    const sheet = XLSX.utils.aoa_to_sheet([head, ...rows.map(r => r.map(v => v == null ? '' : v))]);
+    sheet['!cols'] = head.map((h, c) => {
+      const longest = Math.max(h.length, ...rows.slice(0, 200).map(r => String(r[c] ?? '').length));
+      return { wch: Math.min(48, Math.max(9, longest + 2)) };
+    });
+    sheet['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: head.length - 1 } }) };
+    const tally = {};
+    idx.forEach(i => { const t = /^Tried /.test(statusText(i)) ? 'Partly tried' : statusText(i); tally[t] = (tally[t] || 0) + 1; });
+    const order = [...OUTCOMES.map(o => o.label), 'Partly tried', 'Not called', 'Skipped', 'No number'];
+    const summary = [
+      ['Call results'], [],
+      ['List', S.file || ''], ['Exported', stamp(new Date().toISOString())], ['Contacts', f.label], ['Contacts in this file', rows.length], [],
+      ['Outcome', 'Contacts'],
+      ...order.filter(k => tally[k]).map(k => [k, tally[k]]),
+    ];
+    const sum = XLSX.utils.aoa_to_sheet(summary);
+    sum['!cols'] = [{ wch: 24 }, { wch: 30 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, sheet, 'Call Results');
+    XLSX.utils.book_append_sheet(wb, sum, 'Summary');
+    const type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    deliverFile(new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type }), base + '.xlsx', type);
+  }
+  toast(`Exported ${rows.length.toLocaleString()} contact${rows.length > 1 ? 's' : ''}`);
 }
 
 /* ---------- adding & editing contacts ---------- */
@@ -1114,7 +1166,7 @@ function renderWork() {
     const anyRetry = S.res.some(r => RETRY.has(r.status));
     w.innerHTML = `<div class="done"><span class="label">List complete</span><h2>Everyone in the queue has been called</h2>
       <p style="margin:0;color:var(--muted)">Export your results, or put unreached contacts back in the queue for another pass.</p>
-      <div class="nav"><button class="btn primary" data-act="export">Export results (.csv)</button>
+      <div class="nav"><button class="btn primary" data-act="export">Export results (Excel)</button>
       ${anyRetry ? '<button class="btn" data-act="requeue">Requeue unreached</button>' : ''}</div></div>`;
     return;
   }
@@ -1181,7 +1233,10 @@ function renderPhase() {
 }
 function renderQueue() {
   const f = $('filter').value;
-  const keep = s => f === 'all' ? true : f === 'pending' ? s === 'pending' : f === 'done' ? !!OC[s] : f === 'retry' ? RETRY.has(s) : f === 'appout' ? s === 'appout' : s === 'callback';
+  const keep = filterNow().test;
+  const shown = S.res.filter(r => keep(r.status)).length;
+  $('exportShownBtn').textContent = f === 'all' ? `Export all (${shown.toLocaleString()})` : `Export these (${shown.toLocaleString()})`;
+  $('exportShownBtn').disabled = !shown;
   const items = [], grouped = S.settings.order === 'tz';
   const counts = {};
   if (grouped) S.res.forEach((r, i) => { if (keep(r.status)) { const k = zoneOf(i).k; counts[k] = (counts[k] || 0) + 1; } });
@@ -1246,7 +1301,7 @@ document.addEventListener('click', e => {
   else if (act === 'skip') skip();
   else if (act === 'back') back();
   else if (act === 'pause') pause();
-  else if (act === 'export') exportCSV();
+  else if (act === 'export') exportResults('all');
   else if (act === 'requeue') requeue();
   else if (act === 'add') openEditor(-1);
   else if (act === 'edit') openEditor(S.cur);
@@ -1312,7 +1367,9 @@ $('requeueBtn').onclick = requeue;
 $('blankBtn').onclick = newBlankList;
 $('editForm').onsubmit = saveEditor;
 $('edDelete').onclick = deleteContact;
-$('exportBtn').onclick = exportCSV;
+$('exportBtn').onclick = () => exportResults('all');
+$('exportCsvBtn').onclick = () => exportResults('all', 'csv');
+$('exportShownBtn').onclick = () => exportResults('shown');
 $('resetBtn').onclick = reset;
 $('twConnect').onclick = () => twConnect().then(() => toast('Connected. Calls are ready.'), err => toast(err.message));
 ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); document.body.classList.add('drop-active'); }));
