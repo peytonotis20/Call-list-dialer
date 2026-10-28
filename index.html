@@ -293,7 +293,7 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
 const OUTCOMES = [
   { k: 'connected', label: 'Connected',      tone: 'good' },
   { k: 'appout',    label: 'App Out',        tone: 'good' },
-  { k: 'voicemail', label: 'Left voicemail', tone: 'neutral' },
+  { k: 'voicemail', label: 'Straight to VM', tone: 'neutral' },
   { k: 'noanswer',  label: 'No answer',      tone: 'neutral' },
   { k: 'busy',      label: 'Busy',           tone: 'neutral' },
   { k: 'callback',  label: 'Call back',      tone: 'warn' },
@@ -526,7 +526,8 @@ function unstamp(text) {
   const d = m ? new Date(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]) : new Date(t);
   return isNaN(d) ? '' : d.toISOString();
 }
-const LABEL_TO_STATUS = { ...Object.fromEntries(OUTCOMES.map(o => [o.label.toLowerCase(), o.k])), 'not called': 'pending', skipped: 'skipped', 'no number': 'invalid' };
+const LABEL_TO_STATUS = { ...Object.fromEntries(OUTCOMES.map(o => [o.label.toLowerCase(), o.k])), 'not called': 'pending', skipped: 'skipped', 'no number': 'invalid',
+  'left voicemail': 'voicemail' };   // older exports used this name for Straight to VM
 function resFromResults([, outcome, history, notes, attempts, last]) {
   const r = newRes();
   r.status = LABEL_TO_STATUS[String(outcome || '').trim().toLowerCase()] || 'pending';
