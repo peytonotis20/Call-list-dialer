@@ -113,6 +113,10 @@ textarea { width: 100%; min-height: 76px; resize: vertical; border: 1px solid va
 .queue { display: grid; grid-template-rows: auto minmax(0, 1fr); max-height: min(78vh, 900px); }
 .qhead { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .qhead select { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 5px 8px; }
+.qsearch { flex-basis: 100%; width: 100%; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 7px 10px; font-size: 16px; }
+.qsearch:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.narrow-only { display: none; }
+@media (max-width: 860px) { .narrow-only { display: inline-block; } }
 .qlist { position: relative; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
 .qlist li { display: grid; grid-template-columns: 2.6em minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
 .qlist li:hover { background: var(--sunk); }
@@ -180,6 +184,7 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
       <label class="btn primary filebtn" for="fileInput">Load spreadsheet
         <input type="file" id="fileInput" class="vh" accept=".csv,.xlsx,.xls,.tsv,.txt,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"></label>
       <button class="btn" data-act="add">+ Add contact</button>
+      <button class="btn narrow-only" data-act="find">Search</button>
       <span class="file-name" id="fileName"></span>
     </div>
     <span class="line-chip" id="lineChip" hidden></span>
@@ -194,6 +199,7 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
       <div class="qhead">
         <span class="label">Queue</span>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="search" class="qsearch" type="search" placeholder="Search name, business, phone, city, notes…" aria-label="Search contacts" autocomplete="off" spellcheck="false">
           <select id="order" aria-label="Call order">
             <option value="tz">Time zone: Eastern → Pacific</option>
             <option value="file">Spreadsheet order</option>
@@ -269,7 +275,7 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
         <button class="btn ghost" id="resetBtn">Clear all outcomes</button>
         <button class="btn ghost" id="blankBtn">Start a new blank list</button>
       </div>
-      <p class="notice" style="margin:0">Keyboard: <b>C</b> call · <b>1–8</b> log outcome · <b>N</b> skip · <b>B</b> back · <b>P</b> pause countdown · <b>E</b> edit contact · <b>A</b> add contact · <b>H</b> hang up · <b>M</b> mute. Shortcuts are off while you type notes. Progress is saved in this browser automatically.</p>
+      <p class="notice" style="margin:0">Keyboard: <b>C</b> call · <b>1–8</b> log outcome · <b>N</b> skip · <b>B</b> back · <b>P</b> pause countdown · <b>E</b> edit contact · <b>A</b> add contact · <b>H</b> hang up · <b>M</b> mute · <b>/</b> search. Shortcuts are off while you type notes. Progress is saved in this browser automatically.</p>
     </div>
   </details>
 </div>
@@ -719,6 +725,29 @@ const FILTERS = {
   retry: { label: 'No answer / busy / VM', slug: 'unreached', test: s => RETRY.has(s) },
 };
 const filterNow = () => FILTERS[$('filter').value] || FILTERS.all;
+// Search: every word must appear somewhere in the contact (any spreadsheet column or the
+// call notes). A query that looks like a phone number matches on digits, however it's typed.
+let searchText = '';
+const fold = t => String(t ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+let hayCache = new WeakMap();
+function haystack(i) {
+  const row = S.rows[i];
+  let h = hayCache.get(row);
+  if (!h) {
+    const digits = phonesOf(i).map(p => p.num.replace(/\D/g, '')).join(' ');
+    h = { text: fold(row.join(' ')) + ' ' + digits, digits: row.map(v => String(v ?? '').replace(/\D/g, '')).join(' ') + ' ' + digits };
+    hayCache.set(row, h);
+  }
+  return h;
+}
+function searchMatcher() {
+  const q = searchText.trim();
+  if (!q) return () => true;
+  const digits = q.replace(/\D/g, '');
+  if (digits.length >= 3 && /^[\d\s()+.\-]+$/.test(q)) return i => haystack(i).digits.includes(digits);
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  return i => { const h = haystack(i).text + ' ' + fold(S.res[i].notes); return words.every(w => h.includes(w)); };
+}
 function resultRow(i) {
   const r = S.res[i];
   const history = r.log.map(e => [stamp(e.at), e.l, pretty(e.n), OC[e.k]?.label || e.k].join(' · ')).join(' | ');
@@ -742,11 +771,13 @@ function deliverFile(blob, name, type) {
 // as an Excel workbook (results + summary) or a CSV. Either file can be re-opened in the dialer.
 function exportResults(which = 'all', format = 'xlsx') {
   const f = which === 'shown' ? filterNow() : FILTERS.all;
-  const idx = S.rows.map((_, i) => i).filter(i => f.test(S.res[i].status));
-  if (!idx.length) { toast(`No contacts match "${f.label}" yet.`); return; }
+  const q = which === 'shown' ? searchText.trim() : '';
+  const match = which === 'shown' ? searchMatcher() : () => true;
+  const idx = S.rows.map((_, i) => i).filter(i => f.test(S.res[i].status) && match(i));
+  if (!idx.length) { toast(`No contacts match "${q || f.label}" yet.`); return; }
   const head = [...S.headers, ...RESULT_COLS];
   const rows = idx.map(resultRow);
-  const base = (S.file || 'contacts').replace(/\.[^.]+$/, '').replace(/-results(-[a-z-]+)?$/, '') + '-results' + (f.slug ? '-' + f.slug : '');
+  const base = (S.file || 'contacts').replace(/\.[^.]+$/, '').replace(/-results(-[a-z-]+)?$/, '') + '-results' + (f.slug ? '-' + f.slug : '') + (q ? '-search' : '');
   if (format === 'csv' || !window.XLSX) {
     const q = v => /[",\n\r]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
     const text = '﻿' + [head, ...rows].map(r => r.map(q).join(',')).join('\r\n');
@@ -763,7 +794,7 @@ function exportResults(which = 'all', format = 'xlsx') {
     const order = [...OUTCOMES.map(o => o.label), 'Partly tried', 'Not called', 'Skipped', 'No number'];
     const summary = [
       ['Call results'], [],
-      ['List', S.file || ''], ['Exported', stamp(new Date().toISOString())], ['Contacts', f.label], ['Contacts in this file', rows.length], [],
+      ['List', S.file || ''], ['Exported', stamp(new Date().toISOString())], ['Contacts', f.label + (q ? ` matching "${q}"` : '')], ['Contacts in this file', rows.length], [],
       ['Outcome', 'Contacts'],
       ...order.filter(k => tally[k]).map(k => [k, tally[k]]),
     ];
@@ -1234,16 +1265,17 @@ function renderPhase() {
 }
 function renderQueue() {
   const f = $('filter').value;
-  const keep = filterNow().test;
-  const shown = S.res.filter(r => keep(r.status)).length;
-  $('exportShownBtn').textContent = f === 'all' ? `Export all (${shown.toLocaleString()})` : `Export these (${shown.toLocaleString()})`;
+  const test = filterNow().test, match = searchMatcher();
+  const keep = (s, i) => test(s) && match(i);
+  const shown = S.res.reduce((n, r, i) => n + (keep(r.status, i) ? 1 : 0), 0);
+  $('exportShownBtn').textContent = f === 'all' && !searchText.trim() ? `Export all (${shown.toLocaleString()})` : `Export these (${shown.toLocaleString()})`;
   $('exportShownBtn').disabled = !shown;
   const items = [], grouped = S.settings.order === 'tz';
   const counts = {};
-  if (grouped) S.res.forEach((r, i) => { if (keep(r.status)) { const k = zoneOf(i).k; counts[k] = (counts[k] || 0) + 1; } });
+  if (grouped) S.res.forEach((r, i) => { if (keep(r.status, i)) { const k = zoneOf(i).k; counts[k] = (counts[k] || 0) + 1; } });
   let lastZone = null;
   S.res.forEach((r, i) => {
-    if (!keep(r.status)) return;
+    if (!keep(r.status, i)) return;
     if (grouped) {
       const z = ZONE_BY_KEY[zoneOf(i).k];
       if (z.k !== lastZone) {
@@ -1255,7 +1287,9 @@ function renderQueue() {
     const sub = nums.length ? pretty(nums[0].num) + (nums.length > 1 ? ` +${nums.length - 1} more` : '') : 'No number';
     items.push(`<li data-i="${i}" class="${i === S.cur ? 'cur' : ''}"><span class="n mono">${i + 1}</span><span style="min-width:0"><span class="nm">${esc(nameOf(i))}</span><span class="ph mono">${esc(sub)}</span></span>${chipFor(i)}</li>`);
   });
-  $('qlist').innerHTML = items.join('') || `<li style="cursor:default;display:block;color:var(--muted)">Nothing matches this filter.</li>`;
+  $('qlist').innerHTML = items.join('') || (searchText.trim()
+    ? `<li style="cursor:default;display:block;color:var(--muted)">No contacts match "${esc(searchText.trim())}"${f !== 'all' ? ' in this filter' : ''}. <button class="btn ghost" data-act="clearSearch" style="padding:2px 10px">Clear search</button></li>`
+    : `<li style="cursor:default;display:block;color:var(--muted)">Nothing matches this filter.</li>`);
   // Scroll only the queue list, never the page.
   const ql = $('qlist'), cur = ql.querySelector('.cur');
   if (cur && (cur.offsetTop < ql.scrollTop || cur.offsetTop + cur.offsetHeight > ql.scrollTop + ql.clientHeight))
@@ -1287,7 +1321,7 @@ function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add
 
 /* ---------- events ---------- */
 function afterMapChange() {
-  phoneCache = new WeakMap(); zoneCache = new WeakMap(); validate();
+  phoneCache = new WeakMap(); zoneCache = new WeakMap(); hayCache = new WeakMap(); validate();
   applyOrder();
   if (S.cur < 0 || S.res[S.cur]?.status === 'invalid') S.cur = nextPending(-1);
   S.curNum = firstUntried(S.cur);
@@ -1308,6 +1342,8 @@ document.addEventListener('click', e => {
   else if (act === 'edit') openEditor(S.cur);
   else if (act === 'edCancel') $('editor').close();
   else if (act === 'dismissInfo') { S.loadInfo = null; save(); renderNotices(); }
+  else if (act === 'find') { $('search').scrollIntoView({ block: 'center' }); $('search').focus(); }
+  else if (act === 'clearSearch') { $('search').value = ''; searchText = ''; renderQueue(); $('search').focus(); }
   else if (act === 'dismissTz') { S.tzNoticeSeen = true; save(); renderNotices(); }
   else if (act === 'hangup') twHangup('hangup');
   else if (act === 'mute') twMute();
@@ -1350,6 +1386,7 @@ document.addEventListener('change', e => {
 });
 document.addEventListener('keydown', e => {
   if ($('editor').open || e.target.closest('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === '/') { e.preventDefault(); $('search').focus(); return; }
   const k = e.key.toLowerCase();
   if (k === 'c') dial();
   else if (k >= '1' && k <= String(OUTCOMES.length)) logOutcome(OUTCOMES[+k - 1].k);
@@ -1371,6 +1408,9 @@ $('edDelete').onclick = deleteContact;
 $('exportBtn').onclick = () => exportResults('all');
 $('exportCsvBtn').onclick = () => exportResults('all', 'csv');
 $('exportShownBtn').onclick = () => exportResults('shown');
+let searchT;
+$('search').addEventListener('input', e => { clearTimeout(searchT); searchT = setTimeout(() => { searchText = e.target.value; renderQueue(); }, 120); });
+$('search').addEventListener('keydown', e => { if (e.key === 'Escape') { e.target.value = ''; searchText = ''; renderQueue(); e.target.blur(); } });
 $('resetBtn').onclick = reset;
 $('twConnect').onclick = () => twConnect().then(() => toast('Connected. Calls are ready.'), err => toast(err.message));
 ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); document.body.classList.add('drop-active'); }));
