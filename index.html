@@ -172,6 +172,68 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
 .keypad button { height: 44px; font: 500 18px var(--f-mono); border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
 .keypad button:active { background: var(--accent-soft); }
 .twilio-set a { color: var(--accent); }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.tabs button { border: 0; background: none; padding: 10px 14px; font-weight: 600; color: var(--muted); border-bottom: 3px solid transparent; margin-bottom: -1px; display: inline-flex; gap: 6px; align-items: center; }
+.tabs button.on { color: var(--ink); border-bottom-color: var(--accent); }
+.badge { background: var(--warn); color: #fff; border-radius: 999px; font-size: 11px; padding: 1px 7px; }
+.views { display: grid; gap: 16px; padding: 18px 20px; }
+.view-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.view-head h2 { font: 600 26px/1.1 var(--f-display); margin: 0; margin-right: auto; }
+.view-head p { margin: 0; flex-basis: 100%; }
+.views h3 { margin: 6px 0 0; font-size: 15px; }
+.muted { color: var(--muted); }
+.scope { display: inline-flex; gap: 4px; }
+.crm { display: grid; gap: 12px; border-top: 1px solid var(--line); padding-top: 14px; }
+.crm-row { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; align-items: center; }
+.crm-row select { border: 1px solid var(--line); border-radius: 6px; background: var(--surface); padding: 6px 8px; max-width: 260px; }
+.stagebar { display: flex; flex-wrap: wrap; gap: 6px; }
+.stg { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 4px 11px; font-size: 13px; }
+.stg.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+.stg.dead.on { background: var(--bad); border-color: var(--bad); color: #fff; }
+.fu-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fu-line.due b { color: var(--warn); }
+.crm-sec { border: 1px solid var(--line); border-radius: 8px; padding: 0 12px; }
+.crm-sec summary { padding: 10px 0; cursor: pointer; font-weight: 600; }
+.crm-sec[open] { padding-bottom: 12px; }
+.deal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.deal-grid input { font-size: 16px; }
+.addnote { display: flex; gap: 8px; margin-bottom: 10px; }
+.addnote input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 7px 10px; font-size: 16px; }
+.timeline { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; max-height: 340px; overflow-y: auto; }
+.timeline li { display: grid; gap: 2px; padding-left: 12px; border-left: 2px solid var(--line); font-size: 14px; }
+.timeline .when { font-size: 12px; color: var(--muted); }
+.timeline .note { font-weight: 600; }
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 6px; }
+.pcol { background: var(--sunk); border-radius: 10px; padding: 10px; display: grid; align-content: start; gap: 8px; min-width: 0; }
+.pcol header { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.pcol header span { color: var(--muted); }
+.pcol.funded header b { color: var(--good); } .pcol.dead header b { color: var(--bad); }
+.pcol ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pcol li { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; display: grid; gap: 6px; }
+.pcol li.muted { background: none; border: 0; padding: 0; }
+.pcard { all: unset; cursor: pointer; display: grid; gap: 2px; }
+.pcard:focus-visible { outline: 2px solid var(--accent); }
+.pcard .nm { font-weight: 600; }
+.pmeta { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 12px; color: var(--muted); }
+.pmeta .due { color: var(--warn); font-weight: 600; }
+.pmove { border: 1px solid var(--line); border-radius: 6px; background: var(--bg); padding: 3px 6px; font-size: 13px; }
+@media (max-width: 860px) { .board { grid-auto-flow: row; grid-auto-columns: auto; } }
+.fulist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.furow { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.furow.due { border-color: var(--warn); }
+.furow .nm { font-weight: 600; }
+.daynav { display: flex; gap: 8px; align-items: center; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+.tile { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; display: grid; }
+.tile b { font: 500 22px var(--f-mono); }
+.tile span { font-size: 12px; color: var(--muted); }
+.tablewrap { overflow-x: auto; }
+.rtable { border-collapse: collapse; width: 100%; font-size: 14px; }
+.rtable th, .rtable td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.rtable th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.linkish { all: unset; cursor: pointer; color: var(--accent); font-weight: 600; }
+.linkish:focus-visible { outline: 2px solid var(--accent); }
+.report-ready { border-style: solid; border-color: var(--accent); color: var(--ink); }
 .toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 6px; font-size: 14px; opacity: 0; pointer-events: none; transition: opacity .2s; }
 .toast.show { opacity: 1; }
 </style>
@@ -188,12 +250,20 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
       <span class="file-name" id="fileName"></span>
     </div>
     <span class="line-chip" id="lineChip" hidden></span>
+    <button class="line-chip" id="syncChip" hidden title="">Team synced</button>
     <div class="stats" id="stats"></div>
   </header>
   <div class="progress"><i id="progress"></i></div>
   <div id="notices" style="display:grid;gap:8px"></div>
+  <nav class="tabs" id="tabs" aria-label="Sections">
+    <button data-view="dialer" class="on">Dialer</button>
+    <button data-view="pipeline">Pipeline</button>
+    <button data-view="followups">Follow-ups <span class="badge" id="fuBadge" hidden></span></button>
+    <button data-view="report">Report</button>
+  </nav>
+  <section class="panel views" id="views" hidden></section>
 
-  <div class="main">
+  <div class="main" id="dialerView">
     <section class="panel" id="work"></section>
     <aside class="panel queue">
       <div class="qhead">
@@ -212,6 +282,9 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
             <option value="connected">Connected (incl. App Out)</option>
             <option value="appout">App Out</option>
             <option value="callback">Call back</option>
+            <option value="followups">Follow-ups due</option>
+            <option value="mine">My leads</option>
+            <option value="unassigned">Unassigned leads</option>
           </select>
           <button class="btn" id="exportShownBtn" title="Save the contacts shown below, with their call results, as an Excel spreadsheet">Export</button>
           <button class="btn ghost" id="requeueBtn" title="Put skipped, no-answer and busy contacts back in the queue">Requeue unreached</button>
@@ -268,6 +341,22 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
         <label class="check"><input type="checkbox" id="autoLog"> Log no-answer and busy for me</label>
       </div>
     </div>
+    <div class="grid-set crm-set">
+      <div class="field" style="grid-column:1/-1"><span class="label">Team CRM and 5pm email report (Google Sheet)</span>
+        <small>Share leads, stages, follow-ups and call history with your team, and get the day's report by email at 5pm. Set it up once in Google with the <a href="crm-setup.html" target="_blank" rel="noopener">CRM setup guide</a>, then connect here on each device.</small></div>
+      <label class="field"><span class="label">Your name</span>
+        <input id="userName" type="text" autocomplete="name" placeholder="e.g. Peyton">
+        <small>Shown on your calls, notes and leads.</small></label>
+      <label class="field"><span class="label">Google web app address</span>
+        <input id="crmUrl" class="mono" type="url" placeholder="https://script.google.com/macros/s/…/exec" autocomplete="off" spellcheck="false"></label>
+      <label class="field"><span class="label">Team key</span>
+        <input id="crmKey" type="password" autocomplete="off">
+        <small>The TEAM_KEY in your Google script. Stored only in this browser.</small></label>
+      <div class="field"><span class="label">Connection</span>
+        <div class="nav"><button class="btn" id="crmConnect" type="button">Connect</button><button class="btn" id="crmSyncNow" type="button" hidden>Sync now</button><button class="btn ghost" id="crmStop" type="button" hidden>Stop syncing</button></div>
+        <small id="crmStatus">Not connected. Everything stays on this device until you connect.</small>
+        <div class="nav" id="crmChoices"></div></div>
+    </div>
     <div class="grid-set" style="grid-template-columns:1fr">
       <div class="nav">
         <button class="btn" id="exportBtn">Export all results (Excel)</button>
@@ -275,7 +364,7 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
         <button class="btn ghost" id="resetBtn">Clear all outcomes</button>
         <button class="btn ghost" id="blankBtn">Start a new blank list</button>
       </div>
-      <p class="notice" style="margin:0">Keyboard: <b>C</b> call · <b>1–8</b> log outcome · <b>N</b> skip · <b>B</b> back · <b>P</b> pause countdown · <b>E</b> edit contact · <b>A</b> add contact · <b>H</b> hang up · <b>M</b> mute · <b>/</b> search. Shortcuts are off while you type notes. Progress is saved in this browser automatically.</p>
+      <p class="notice" style="margin:0">Keyboard: <b>C</b> call · <b>1–8</b> log outcome · <b>N</b> skip · <b>B</b> back · <b>P</b> pause countdown · <b>E</b> edit contact · <b>A</b> add contact · <b>H</b> hang up · <b>M</b> mute · <b>/</b> search · <b>F</b> follow-up. Shortcuts are off while you type notes. Progress is saved in this browser automatically.</p>
     </div>
   </details>
 </div>
@@ -289,6 +378,25 @@ details.settings summary { padding: 12px 0; cursor: pointer; font-weight: 600; }
       <button type="submit" class="btn primary" id="edSave">Save</button>
       <button type="button" class="btn" data-act="edCancel">Cancel</button>
       <button type="button" class="btn ghost danger" id="edDelete">Delete contact</button>
+    </div>
+  </form>
+</dialog>
+<dialog class="editor" id="fuDlg" aria-labelledby="fuTitle">
+  <form id="fuForm" novalidate>
+    <h2 id="fuTitle">Set a follow-up</h2>
+    <div class="nav" id="fuQuick">
+      <button type="button" class="btn" data-fuq="1h">In 1 hour</button>
+      <button type="button" class="btn" data-fuq="today4">Today 4 PM</button>
+      <button type="button" class="btn" data-fuq="tomorrow10">Tomorrow 10 AM</button>
+      <button type="button" class="btn" data-fuq="tomorrow2">Tomorrow 2 PM</button>
+      <button type="button" class="btn" data-fuq="monday10">Monday 10 AM</button>
+    </div>
+    <label class="field"><span class="label">When (your time)</span><input id="fuAt" type="datetime-local"><small id="fuThere"></small></label>
+    <label class="field"><span class="label">Note</span><input id="fuNote" type="text" placeholder="What to cover on the call" autocomplete="off"></label>
+    <div class="nav">
+      <button type="submit" class="btn primary">Save follow-up</button>
+      <button type="button" class="btn" data-act="fuCancel" id="fuCancelBtn">Cancel</button>
+      <button type="button" class="btn ghost danger" data-act="fuRemove" id="fuRemove">Remove follow-up</button>
     </div>
   </form>
 </dialog>
@@ -332,7 +440,9 @@ const newRes = () => ({ status: 'pending', notes: '', at: '', attempts: 0, tried
 
 function fresh() {
   return { file: '', sample: false, headers: [], rows: [], map: { phones: [] }, res: [], cur: 0, curNum: 0, oncall: false, loadInfo: null,
-           settings: { scheme: 'tel:', cc: '1', delay: 5, auto: true, combine: true, twUrl: '', twPin: '', twRing: 25, autoLog: true, order: 'tz' } };
+           settings: { scheme: 'tel:', cc: '1', delay: 5, auto: true, combine: true, twUrl: '', twPin: '', twRing: 25, autoLog: true, order: 'tz',
+                       userName: '', crmUrl: '', crmKey: '' },
+           sync: freshSync(), view: 'dialer', open: {}, scope: 'all', reportSeen: '', reportDay: '' };
 }
 function save() { clearTimeout(saveT); try { localStorage.setItem(STORE, JSON.stringify(S)); } catch (e) {} }
 function saveSoon() { clearTimeout(saveT); saveT = setTimeout(save, 400); }
@@ -534,7 +644,10 @@ function unstamp(text) {
 }
 const LABEL_TO_STATUS = { ...Object.fromEntries(OUTCOMES.map(o => [o.label.toLowerCase(), o.k])), 'not called': 'pending', skipped: 'skipped', 'no number': 'invalid',
   'left voicemail': 'voicemail' };   // older exports used this name for Straight to VM
-function resFromResults([, outcome, history, notes, attempts, last]) {
+function resFromResults(cells) {
+  const data = cells.length > RESULT_COLS.length ? cells[cells.length - 1] : '';
+  if (data) { try { const r = JSON.parse(data); if (r && r.tried) { r.log ||= []; return r; } } catch (e) {} }
+  const [, outcome, history, notes, attempts, last] = cells;
   const r = newRes();
   r.status = LABEL_TO_STATUS[String(outcome || '').trim().toLowerCase()] || 'pending';
   r.notes = String(notes || '');
@@ -550,13 +663,20 @@ function resFromResults([, outcome, history, notes, attempts, last]) {
   });
   return r;
 }
-function load(headers, rows, file, sample) {
-  const settings = S ? S.settings : fresh().settings;
-  S = fresh(); S.settings = settings;
+function load(headers, rows, file, sample, silent) {
+  if (!silent && !sample && S && teamOn()) { addFileToTeam(headers, rows, file); return; }
+  const settings = S ? S.settings : fresh().settings, sync = S && S.sync ? S.sync : freshSync();
+  const keep = S ? { view: S.view, open: S.open, scope: S.scope, reportSeen: S.reportSeen } : {};
+  S = fresh(); S.settings = settings; S.sync = sync; Object.assign(S, keep);
   // A results file exported by this dialer: strip its progress columns and restore the progress.
-  const tail = headers.slice(-RESULT_COLS.length);
-  const isResults = headers.length > RESULT_COLS.length && [RESULT_COLS, RESULT_COLS_OLD].some(cols => cols.every((h, k) => tail[k] === h));
   let progress = null;
+  if (headers[headers.length - 1] === 'Dialer Data') {
+    const n = headers.length - RESULT_COLS.length - CRM_EXPORT_COLS.length - 1;
+    progress = rows.map(r => r.slice(n));
+    headers = headers.slice(0, n); rows = rows.map(r => r.slice(0, n));
+  }
+  const tail = headers.slice(-RESULT_COLS.length);
+  const isResults = !progress && headers.length > RESULT_COLS.length && [RESULT_COLS, RESULT_COLS_OLD].some(cols => cols.every((h, k) => tail[k] === h));
   if (isResults) {
     const n = headers.length - RESULT_COLS.length;
     progress = rows.map(r => r.slice(n));
@@ -581,21 +701,32 @@ function load(headers, rows, file, sample) {
   S.res.forEach((r, i) => { r.src = i; });
   applyOrder();
   S.cur = nextPending(-1); S.curNum = firstUntried(S.cur);
+  if (silent) return;
   stopTimer(); save(); renderAll();
   if (!sample && S.rows.length) toast(progress ? `Picked up where you left off in ${file}` : `Loaded ${S.rows.length} contacts from ${file}`);
   if (!S.map.phones.length) $('settings').open = true;
 }
 function validate() {
   S.res.forEach((r, i) => {
-    r.tried ||= {}; r.log ||= [];
+    r.tried ||= {}; r.log ||= []; ensureCrm(r);
     const has = phonesOf(i).length > 0;
     if (!has && ['pending', 'invalid', 'duplicate'].includes(r.status)) r.status = 'invalid';
     else if (has && ['invalid', 'duplicate'].includes(r.status)) r.status = 'pending';
   });
 }
 function nextPending(from) {
+  const now = Date.now();
+  let due = -1, dueAt = Infinity;
+  S.res.forEach((r, i) => {
+    if (i === from || !isDue(r, now) || !mineOrFree(r) || r.stage === 'dead' || skippedFu.has(r.id)) return;
+    const t = Date.parse(r.fu.at); if (t < dueAt) { dueAt = t; due = i; }
+  });
+  if (due >= 0) return due;                       // follow-ups that are due come first
   const n = S.res.length;
-  for (let k = 1; k <= n; k++) { const i = (from + k + n) % n; if (S.res[i].status === 'pending') return i; }
+  for (let k = 1; k <= n; k++) {
+    const i = (from + k + n) % n, r = S.res[i];
+    if (r.status === 'pending' && mineOrFree(r) && r.stage !== 'dead') return i;
+  }
   return -1;
 }
 function firstUntried(i) {
@@ -643,26 +774,41 @@ function bestOf(i) {
   const r = S.res[i], ks = phonesOf(i).map(p => r.tried[p.num]).filter(Boolean);
   return ['voicemail', 'noanswer', 'busy', 'wrong'].find(x => ks.includes(x)) || 'noanswer';
 }
-function logOutcome(k) {
+function logOutcome(k, opts = {}) {
   const i = S.cur; if (i < 0) return;
+  // Call back: pick the time first, then log it.
+  if (k === 'callback' && !opts.asked) {
+    stopTimer();
+    S.res[i].notes = ($('notes')?.value ?? S.res[i].notes ?? '').trim();
+    openFollowUp(i, { then: () => logOutcome('callback', { asked: true }) });
+    return;
+  }
   stopTimer(); twHangup('outcome'); TW.last = '';
   const r = S.res[i], nums = phonesOf(i), p = curPhone();
   r.notes = ($('notes')?.value ?? r.notes ?? '').trim();
   if (!r.attempts) r.attempts = 1;
   const at = new Date().toISOString();
   if (!r.at) r.at = at;
-  if (p) { r.tried[p.num] = k; r.log.push({ n: p.num, l: p.label, k, at }); }
+  if (p) r.tried[p.num] = k;
   S.oncall = false;
   // Not reached on this number: move to the contact's next untried number.
   const nextNum = p && NUM_LEVEL.has(k) ? nextUntried(i, nums.indexOf(p)) : -1;
+  r.status = nextNum >= 0 ? 'pending' : NUM_LEVEL.has(k) ? bestOf(i) : k;
+  const set = { status: 1, tried: r.tried, attempts: r.attempts, lastCalled: at, notes: r.notes };
+  if (teamOn() && !r.owner) { r.owner = me(); set.owner = r.owner; }      // first call claims the lead
+  if (r.fu && !r.fu.done && k !== 'callback' && nextNum < 0) { r.fu.done = true; set.fuDone = true; }
+  if (p) {
+    const id = record(i, 'Call', r.notes, set, { act: { num: pretty(p.num), label: p.label, outcome: OC[k].label } });
+    r.log.push({ id, n: p.num, l: p.label, k, at, user: me(), note: r.notes });
+  }
+  autoStage(i, k);
   if (nextNum >= 0) {
-    S.curNum = nextNum; r.status = 'pending';
+    S.curNum = nextNum;
     save(); renderAll();
     toast(`${OC[k].label} on ${p.label}. Next: ${nums[nextNum].label}`);
     if (S.settings.auto) autoNext();
     return;
   }
-  r.status = NUM_LEVEL.has(k) ? bestOf(i) : k;
   const nxt = nextPending(i);
   S.cur = nxt; S.curNum = firstUntried(nxt);
   save(); renderAll();
@@ -672,6 +818,7 @@ function logOutcome(k) {
 function skip() {
   const i = S.cur; if (i < 0) return;
   stopTimer(); twHangup('moved'); TW.last = '';
+  if (isDue(S.res[i])) skippedFu.add(S.res[i].id);
   if (S.res[i].status === 'pending') S.res[i].status = 'skipped';
   S.res[i].notes = ($('notes')?.value ?? S.res[i].notes).trim();
   S.oncall = false; S.cur = nextPending(i); S.curNum = firstUntried(S.cur); save(); renderAll();
@@ -717,6 +864,9 @@ function reset() {
 // Queue filters, shared by the queue list and the Export button.
 const FILTERS = {
   all: { label: 'All contacts', slug: '', test: () => true },
+  followups: { label: 'Follow-ups due', slug: 'follow-ups', test: (s, i) => isDue(S.res[i]) },
+  mine: { label: 'My leads', slug: 'mine', test: (s, i) => S.res[i].owner === me() },
+  unassigned: { label: 'Unassigned leads', slug: 'unassigned', test: (s, i) => !S.res[i].owner },
   pending: { label: 'Not called yet', slug: 'not-called', test: s => s === 'pending' },
   done: { label: 'Called', slug: 'called', test: s => !!OC[s] },
   connected: { label: 'Connected (incl. App Out)', slug: 'connected', test: s => s === 'connected' || s === 'appout' },
@@ -748,10 +898,20 @@ function searchMatcher() {
   const words = fold(q).split(/\s+/).filter(Boolean);
   return i => { const h = haystack(i).text + ' ' + fold(S.res[i].notes); return words.every(w => h.includes(w)); };
 }
+const CRM_EXPORT_COLS = ['Stage', 'Owner', 'Next Follow-up', 'Follow-up Note', 'Requested', 'Offer', 'Funded Amount', 'Lender', 'Commission', 'Funded Date'];
 function resultRow(i) {
-  const r = S.res[i];
+  const r = S.res[i], fu = r.fu && !r.fu.done ? r.fu : null;
   const history = r.log.map(e => [stamp(e.at), e.l, pretty(e.n), OC[e.k]?.label || e.k].join(' · ')).join(' | ');
-  return [...S.rows[i], phonesOf(i).map(p => pretty(p.num)).join('; '), statusText(i), history, r.notes, r.attempts, stamp(r.at)];
+  // Everything the dialer knows about the contact, so the file re-opens with full history (kept under Excel's cell limit).
+  const keepData = { ...r, log: r.log.slice(-200), hist: r.hist.slice(-150) };
+  let data = JSON.stringify(keepData);
+  while (data.length > 30000 && (keepData.log.length || keepData.hist.length)) {
+    keepData.log = keepData.log.slice(Math.ceil(keepData.log.length / 2)); keepData.hist = keepData.hist.slice(Math.ceil(keepData.hist.length / 2));
+    data = JSON.stringify(keepData);
+  }
+  return [...S.rows[i], phonesOf(i).map(p => pretty(p.num)).join('; '), statusText(i), history, r.notes, r.attempts, stamp(r.at),
+    STAGE[r.stage].label, r.owner || '', fu ? stamp(fu.at) : '', fu ? fu.note : '', r.deal.requested ?? '', r.deal.offer ?? '', r.deal.funded ?? '',
+    r.deal.lender ?? '', r.deal.commission ?? '', r.deal.fundedOn ?? '', data];
 }
 // Hands a file to the person: the Share sheet on iPhone/iPad, a download elsewhere.
 function deliverFile(blob, name, type) {
@@ -773,9 +933,9 @@ function exportResults(which = 'all', format = 'xlsx') {
   const f = which === 'shown' ? filterNow() : FILTERS.all;
   const q = which === 'shown' ? searchText.trim() : '';
   const match = which === 'shown' ? searchMatcher() : () => true;
-  const idx = S.rows.map((_, i) => i).filter(i => f.test(S.res[i].status) && match(i));
+  const idx = S.rows.map((_, i) => i).filter(i => f.test(S.res[i].status, i) && match(i));
   if (!idx.length) { toast(`No contacts match "${q || f.label}" yet.`); return; }
-  const head = [...S.headers, ...RESULT_COLS];
+  const head = [...S.headers, ...RESULT_COLS, ...CRM_EXPORT_COLS, 'Dialer Data'];
   const rows = idx.map(resultRow);
   const base = (S.file || 'contacts').replace(/\.[^.]+$/, '').replace(/-results(-[a-z-]+)?$/, '') + '-results' + (f.slug ? '-' + f.slug : '') + (q ? '-search' : '');
   if (format === 'csv' || !window.XLSX) {
@@ -796,7 +956,9 @@ function exportResults(which = 'all', format = 'xlsx') {
       ['Call results'], [],
       ['List', S.file || ''], ['Exported', stamp(new Date().toISOString())], ['Contacts', f.label + (q ? ` matching "${q}"` : '')], ['Contacts in this file', rows.length], [],
       ['Outcome', 'Contacts'],
-      ...order.filter(k => tally[k]).map(k => [k, tally[k]]),
+      ...order.filter(k => tally[k]).map(k => [k, tally[k]]), [],
+      ['Stage', 'Contacts'],
+      ...STAGES.map(st => [st.label, idx.filter(i => S.res[i].stage === st.k).length]).filter(r => r[1]),
     ];
     const sum = XLSX.utils.aoa_to_sheet(summary);
     sum['!cols'] = [{ wch: 24 }, { wch: 30 }];
@@ -814,6 +976,10 @@ const BLANK_HEADERS = ['Name', 'Company', 'Phone', 'Alt Phone', 'Email', 'State'
 let editing = -1, delArmed = false, blankArmed = false;
 
 function startBlank() {
+  if (teamOn()) {                                   // an empty team list: start with the standard columns
+    BLANK_HEADERS.forEach(h => { if (!S.headers.includes(h)) { S.headers.push(h); S.rows = S.rows.map(r => [...r, '']); } });
+    S.map = detect(S.headers, S.rows); return;
+  }
   load(BLANK_HEADERS.slice(), [], 'My contacts', false);
 }
 function newBlankList() {
@@ -861,12 +1027,18 @@ function saveEditor(e) {
   if (!S.map.phones.length) return err('Tick at least one phone number column under Columns & dialing settings first.');
   if (!phonesOfRow(vals).length) return err('Enter at least one full phone number, including the area code.');
   let idx = editing;
+  const before = idx >= 0 ? S.rows[idx] : null;
   if (idx < 0) {
     S.rows.push(vals);
     S.res.push({ ...newRes(), src: S.res.reduce((m, r) => Math.max(m, r.src ?? -1), -1) + 1 });
     idx = S.rows.length - 1;
   } else S.rows[idx] = vals;
   validate();
+  if (!before) record(idx, 'Added', 'Added by hand', { stage: 'new', matchKey: matchKey(idx) }, { lead: Object.fromEntries(S.headers.map((h, c) => [h, vals[c]])) });
+  else {
+    const changed = S.headers.filter((h, c) => (before[c] ?? '') !== vals[c]);
+    if (changed.length) record(idx, 'Edit', `Changed ${changed.join(', ')}`, { matchKey: matchKey(idx) }, { lead: Object.fromEntries(changed.map(h => [h, vals[S.headers.indexOf(h)]])) });
+  }
   if (S.res[idx].status === 'pending' && (S.cur < 0 || (editing < 0 && $('edFront').checked && !S.oncall))) S.cur = idx;
   applyOrder(); idx = S.rows.indexOf(vals);
   if (S.cur === idx) S.curNum = firstUntried(idx);
@@ -877,6 +1049,7 @@ function deleteContact() {
   const i = editing; if (i < 0) return;
   if (!delArmed) { delArmed = true; $('edDelete').textContent = 'Tap again to delete'; return; }
   const name = nameOf(i);
+  record(i, 'Deleted', `Deleted ${name}`, { deleted: true });
   S.rows.splice(i, 1); S.res.splice(i, 1);
   if (S.cur === i) { S.oncall = false; S.cur = S.rows.length ? nextPending(i - 1) : -1; S.curNum = firstUntried(S.cur); }
   else if (S.cur > i) S.cur--;
@@ -990,6 +1163,291 @@ function applyOrder() {
   S.rows = idx.map(i => S.rows[i]); S.res = idx.map(i => S.res[i]);
   S.cur = keep ? S.rows.indexOf(keep) : S.cur;
   S.sortedBy = S.settings.order;
+}
+
+/* ---------- CRM: stages, follow-ups, deals, owners, history ---------- */
+const STAGES = [
+  { k: 'new', label: 'New' }, { k: 'contacted', label: 'Contacted' }, { k: 'appout', label: 'App Out' }, { k: 'docs', label: 'Docs In' },
+  { k: 'submitted', label: 'Submitted' }, { k: 'approved', label: 'Approved' }, { k: 'funded', label: 'Funded' }, { k: 'dead', label: 'Dead' },
+];
+const STAGE = Object.fromEntries(STAGES.map((s, n) => [s.k, { ...s, n }]));
+const STAGE_FROM_LABEL = Object.fromEntries(STAGES.map(s => [s.label.toLowerCase(), s.k]));
+const DEAL_FIELDS = [
+  { k: 'requested', label: 'Requested', money: true }, { k: 'offer', label: 'Offer', money: true },
+  { k: 'funded', label: 'Funded amount', money: true }, { k: 'lender', label: 'Lender' },
+  { k: 'commission', label: 'Commission', money: true }, { k: 'fundedOn', label: 'Funded date', date: true },
+];
+const uid = p => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const me = () => (S.settings.userName || '').trim() || 'Me';
+const teamOn = () => !!(S.sync && S.sync.mode === 'team');
+const money = n => (n === '' || n == null || isNaN(n)) ? '' : '$' + Math.round(Number(n)).toLocaleString('en-US');
+const dayOf = iso => stamp(iso).slice(0, 10);                       // local YYYY-MM-DD
+const isDue = (r, now = Date.now()) => !!(r.fu && !r.fu.done && r.fu.at && Date.parse(r.fu.at) <= now);
+const mineOrFree = r => !teamOn() || !r.owner || r.owner === me();
+const skippedFu = new Set();                                          // follow-ups skipped this session
+function freshSync() { return { mode: 'off', outbox: [], lastPull: null, state: '', error: '', team: [] }; }
+
+// Fills in CRM fields for contacts saved by earlier versions (their stage comes from their outcome).
+function ensureCrm(r) {
+  if (!r.id) r.id = uid('c');
+  if (!r.stage || !STAGE[r.stage]) r.stage = r.status === 'appout' ? 'appout' : r.status === 'dnc' ? 'dead'
+    : (r.status === 'connected' || r.status === 'callback') ? 'contacted' : 'new';
+  if (r.fu === undefined) r.fu = null;
+  r.deal ||= {}; r.hist ||= [];
+  if (r.owner === undefined) r.owner = '';
+  r.log.forEach(e => { if (!e.id) e.id = uid('e'); });
+}
+
+// Every change goes through here: it lands in the contact's history and, with team sync on,
+// in the outbox for the Google Sheet. Returns the event id.
+function record(i, type, detail, set = {}, extra = {}) {
+  const r = S.res[i], at = new Date().toISOString(), id = extra.id || uid('e');
+  if (type !== 'Call' && !extra.quiet) r.hist.push({ id, at, user: me(), type, text: detail });
+  if ('notes' in set && type !== 'Notes') clearTimeout(notesT);   // this change already carries the notes
+  if (teamOn()) {
+    const out = {};
+    for (const k in set) {
+      const v = set[k];
+      out[k] = k === 'stage' ? STAGE[v].label : k === 'status' ? statusText(i) : v && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v;
+    }
+    S.sync.outbox.push({ id, at, user: me(), cid: r.id, type, set: out, lead: extra.lead, quiet: extra.quiet || undefined,
+      act: { contact: nameOf(i), business: col(i, 'company'), detail, ...(extra.act || {}) } });
+    syncSoon();
+  }
+  return id;
+}
+function setStage(i, k) {
+  const r = S.res[i];
+  if (!STAGE[k] || r.stage === k) return;
+  const from = STAGE[r.stage]?.label || 'New';
+  r.stage = k;
+  record(i, 'Stage', `${from} → ${STAGE[k].label}`, { stage: k });
+}
+// Outcomes move a lead forward on their own: App Out -> App Out, a conversation -> Contacted, Do not call -> Dead.
+function autoStage(i, k) {
+  const r = S.res[i];
+  if (k === 'dnc') return setStage(i, 'dead');
+  const target = k === 'appout' ? 'appout' : (k === 'connected' || k === 'callback') ? 'contacted' : null;
+  if (target && r.stage !== 'dead' && STAGE[target].n > STAGE[r.stage].n) setStage(i, target);
+}
+const fuWhen = iso => new Date(iso).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+function setFollowUp(i, atIso, note) {
+  S.res[i].fu = { at: atIso, note: note || '', done: false };
+  record(i, 'Follow-up', `Follow-up set for ${fuWhen(atIso)}${note ? ': ' + note : ''}`, { fuAt: atIso, fuNote: note || '', fuDone: false });
+}
+function finishFollowUp(i) {
+  const r = S.res[i]; if (!r.fu || r.fu.done) return;
+  r.fu.done = true;
+  record(i, 'Follow-up', 'Follow-up done', { fuDone: true });
+}
+function removeFollowUp(i) {
+  if (!S.res[i].fu) return;
+  S.res[i].fu = null;
+  record(i, 'Follow-up', 'Follow-up removed', { fuAt: '', fuNote: '', fuDone: true });
+}
+function setDeal(i, k, raw) {
+  const r = S.res[i], f = DEAL_FIELDS.find(d => d.k === k); if (!f) return;
+  const v = f.money ? (String(raw).trim() === '' ? '' : Number(String(raw).replace(/[^\d.]/g, '')) || 0) : String(raw).trim();
+  if ((r.deal[k] ?? '') === v) return;
+  r.deal[k] = v;
+  record(i, 'Deal', `${f.label}: ${v === '' ? 'cleared' : f.money ? money(v) : v}`, { [k]: v });
+  if (r.deal.funded && r.deal.fundedOn && STAGE[r.stage].n < STAGE.funded.n) setStage(i, 'funded');
+}
+function setOwner(i, name) {
+  const r = S.res[i]; if ((r.owner || '') === name) return;
+  r.owner = name;
+  record(i, 'Owner', name ? `Assigned to ${name}` : 'Unassigned', { owner: name });
+}
+function addNote(i, text) {
+  text = String(text || '').trim(); if (!text) return;
+  record(i, 'Note', text);
+}
+// Call notes saved while typing go to the sheet quietly (no Activity line), at most every 2 seconds.
+let notesT;
+function notesChanged(i) {
+  if (!teamOn()) return;
+  clearTimeout(notesT);
+  const id = S.res[i].id;
+  notesT = setTimeout(() => { const k = S.res.findIndex(r => r.id === id); if (k >= 0) record(k, 'Notes', '', { notes: S.res[k].notes }, { quiet: true }); }, 2000);
+}
+function matchKey(i) {
+  return [...phonesOf(i).map(p => p.num.replace(/\D/g, '')), fold(nameOf(i) + '|' + col(i, 'company')).replace(/\s+/g, '_')].join(' ');
+}
+
+/* ---------- team sync with the Google Sheet ---------- */
+const SYNC_EVERY = 30000;
+let syncBusy = false, syncAgain = false, syncSoonT;
+// The first change starts the countdown; later changes ride along instead of pushing it back.
+function syncSoon(ms = 1500) { if (syncSoonT) return; syncSoonT = setTimeout(() => { syncSoonT = null; syncNow(); }, ms); }
+async function crmPost(action, payload = {}) {
+  const url = (S.settings.crmUrl || '').trim();
+  if (!/^https:\/\/script\.google(usercontent)?\.com\/\S+$/.test(url)) throw new Error('Paste the web app address from Google. It starts with https://script.google.com/');
+  if (!S.settings.crmKey) throw new Error('Enter your team key.');
+  let res;
+  try {
+    res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ key: S.settings.crmKey, user: me(), action, ...payload }) });
+  } catch (e) {
+    throw new Error(navigator.onLine === false ? "You're offline. Changes are kept here and will sync when you're back online."
+      : 'Could not reach your Google Sheet. Check the web app address, and that it was deployed with access set to "Anyone".');
+  }
+  let body;
+  try { body = await res.json(); } catch (e) { throw new Error("Google didn't answer like the Call List CRM. Check the web app address."); }
+  if (!body.ok) throw new Error(body.error || 'The Google Sheet refused the request.');
+  return body;
+}
+async function syncNow() {
+  if (!teamOn()) return;
+  if (syncBusy) { syncAgain = true; return; }
+  syncBusy = true; S.sync.state = 'syncing'; renderSync();
+  try {
+    while (S.sync.outbox.length) {
+      const batch = S.sync.outbox.slice(0, 100);
+      await crmPost('push', { events: batch });
+      const sent = new Set(batch.map(e => e.id));
+      S.sync.outbox = S.sync.outbox.filter(e => !sent.has(e.id));
+      save();
+    }
+    const res = await crmPost('pull', { since: S.sync.lastPull || null });
+    if (!res.unchanged) mergeTeam(res);
+    S.sync.lastPull = res.now; S.sync.lastOk = new Date().toISOString(); S.sync.error = ''; S.sync.state = 'ok';
+  } catch (err) {
+    S.sync.error = err.message; S.sync.state = 'error';
+  }
+  syncBusy = false; save(); renderSync();
+  if (syncAgain) { syncAgain = false; syncSoon(200); }
+}
+// Brings the sheet's contacts and activity into the dialer. Fields with changes still waiting
+// in the outbox are left alone, so a slow sync never undoes what you just did.
+function mergeTeam(res) {
+  const heads = res.headers || [];
+  heads.forEach(h => { if (!S.headers.includes(h)) { S.headers.push(h); S.rows = S.rows.map(r => [...r, '']); } });
+  const colOf = Object.fromEntries(S.headers.map((h, c) => [h, c]));
+  const pending = {};
+  S.sync.outbox.forEach(e => { const p = pending[e.cid] ||= new Set(); Object.keys(e.set || {}).forEach(k => p.add(k)); if (e.lead) p.add('lead'); });
+  const typing = document.activeElement && document.activeElement.id === 'notes' && S.cur >= 0 ? S.res[S.cur].id : null;
+  const keep = S.cur >= 0 ? S.res[S.cur].id : null;
+  const wasFree = S.cur >= 0 && !S.res[S.cur].owner;
+  const byId = new Map(S.res.map((r, i) => [r.id, i]));
+  const gone = new Set();
+  res.contacts.forEach(c => {
+    if (c.deleted) { gone.add(c.id); return; }
+    let i = byId.get(c.id);
+    const p = pending[c.id] || new Set();
+    if (i === undefined) {
+      S.rows.push(S.headers.map(h => { const k = heads.indexOf(h); return k >= 0 ? (c.lead[k] ?? '') : ''; }));
+      const r = newRes(); r.id = c.id; ensureCrm(r); S.res.push(r);
+      i = S.rows.length - 1; byId.set(c.id, i);
+    } else if (!p.has('lead')) {
+      const row = S.rows[i].slice(); let diff = false;
+      heads.forEach((h, k) => { const v = c.lead[k] ?? ''; if (row[colOf[h]] !== v) { row[colOf[h]] = v; diff = true; } });
+      if (diff) S.rows[i] = row;
+    }
+    const r = S.res[i];
+    r.src = c.row;
+    const take = k => !p.has(k);
+    if (take('status')) r.status = LABEL_TO_STATUS[String(c.status || '').toLowerCase()] || 'pending';
+    if (take('tried')) r.tried = c.tried || {};
+    if (take('attempts')) r.attempts = Number(c.attempts) || 0;
+    if (take('lastCalled')) r.at = c.lastCalled || '';
+    if (take('notes') && typing !== c.id) r.notes = c.notes || '';
+    if (take('stage')) r.stage = STAGE_FROM_LABEL[String(c.stage || '').toLowerCase()] || 'new';
+    if (take('owner')) r.owner = c.owner || '';
+    if (take('fuAt') && take('fuDone')) r.fu = c.fuAt ? { at: c.fuAt, note: c.fuNote || '', done: !!c.fuDone } : null;
+    DEAL_FIELDS.forEach(f => { if (take(f.k)) r.deal[f.k] = c[f.k] ?? ''; });
+  });
+  if (gone.size) {
+    const idx = S.res.map((r, i) => i).filter(i => !gone.has(S.res[i].id));
+    S.rows = idx.map(i => S.rows[i]); S.res = idx.map(i => S.res[i]);
+  }
+  const at = new Map(S.res.map((r, i) => [r.id, i]));
+  const known = new Set();
+  S.res.forEach(r => { r.log.forEach(e => known.add(e.id)); r.hist.forEach(e => known.add(e.id)); });
+  (res.activity || []).forEach(a => {
+    if (!a.id || known.has(a.id) || !at.has(a.cid) || a.type === 'Notes') return;
+    const r = S.res[at.get(a.cid)];
+    if (a.type === 'Call') {
+      const k = LABEL_TO_STATUS[String(a.outcome || '').toLowerCase()];
+      if (OC[k]) r.log.push({ id: a.id, at: a.at, user: a.user, n: norm(a.num) || a.num, l: a.label, k, note: a.detail || '' });
+    } else r.hist.push({ id: a.id, at: a.at, user: a.user, type: a.type, text: a.detail || '' });
+    known.add(a.id);
+  });
+  S.res.forEach(r => { r.log.sort((x, y) => (x.at > y.at) - (x.at < y.at)); r.hist.sort((x, y) => (x.at > y.at) - (x.at < y.at)); });
+  if (res.team) S.sync.team = res.team;
+  if (res.full && (!S.map || !S.map.phones || !S.map.phones.length)) S.map = detect(S.headers, S.rows);
+  validate();
+  S.cur = keep ? S.res.findIndex(r => r.id === keep) : S.cur;
+  applyOrder();
+  // A teammate just claimed the lead on your screen: move on so you don't both call it.
+  const cr = S.cur >= 0 ? S.res[S.cur] : null;
+  if (cr && wasFree && cr.owner && cr.owner !== me() && !S.oncall && !(TW && TW.call) && !editingNow()) {
+    toast(`${nameOf(S.cur)} was just taken by ${cr.owner}. Moved you to the next lead.`);
+    S.cur = nextPending(S.cur); S.curNum = firstUntried(S.cur);
+  }
+  if (S.cur < 0 && !S.oncall) { S.cur = nextPending(-1); S.curNum = firstUntried(S.cur); }
+  refreshAfterSync(keep);
+}
+const editingNow = () => !!(document.activeElement && document.activeElement.closest && document.activeElement.closest('#work, #views')
+  && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
+// Redraw what changed, but never under someone who is typing or on a call.
+function refreshAfterSync(keep) {
+  renderStats(); renderNotices(); renderQueue(); renderTabs();
+  if (!editingNow() && !S.oncall && !(TW && TW.call)) {
+    if (S.view === 'dialer') renderWork(); else renderView();
+  }
+}
+// The payload that uploads one local contact, with its whole history, to the sheet.
+function importPayload(i) {
+  const r = S.res[i], contact = nameOf(i), business = col(i, 'company');
+  const set = { stage: STAGE[r.stage].label, status: statusText(i), tried: r.tried, attempts: r.attempts, lastCalled: r.at || '',
+    notes: r.notes || '', owner: r.owner || (r.log.length ? me() : ''), fuAt: r.fu?.at || '', fuNote: r.fu?.note || '', fuDone: r.fu ? !!r.fu.done : false };
+  DEAL_FIELDS.forEach(f => { set[f.k] = r.deal[f.k] ?? ''; });
+  // Calls made before a name was set were saved as "Me"; they belong to whoever uploads the list.
+  const who = u => (!u || u === 'Me') ? me() : u;
+  const events = [
+    ...r.log.map(e => ({ id: e.id, at: e.at, user: who(e.user), type: 'Call',
+      act: { contact, business, num: pretty(e.n), label: e.l, outcome: OC[e.k]?.label || '', detail: e.note || '' } })),
+    ...r.hist.map(h => ({ id: h.id, at: h.at, user: who(h.user), type: h.type, act: { contact, business, detail: h.text } })),
+  ];
+  return { id: r.id, matchKey: matchKey(i), lead: Object.fromEntries(S.headers.map((h, c) => [h, S.rows[i][c] ?? ''])), set, events };
+}
+async function uploadList(onProgress) {
+  const all = S.res.map((_, i) => i);
+  let added = 0, skipped = 0;
+  for (let k = 0; k < all.length; k += 200) {
+    const res = await crmPost('import', { headers: S.headers, contacts: all.slice(k, k + 200).map(importPayload) });
+    added += res.added; skipped += res.skipped;
+    if (onProgress) onProgress(Math.min(all.length, k + 200), all.length);
+  }
+  return { added, skipped };
+}
+// Switch this device to the team list: the sheet becomes the source of the contacts.
+function useTeamList() {
+  const keepSettings = S.settings, sync = { ...freshSync(), mode: 'team' };
+  S = fresh(); S.settings = keepSettings; S.sync = sync;
+  S.file = 'Team CRM'; S.sample = false; S.headers = []; S.rows = []; S.res = []; S.map = { phones: [] };
+  S.cur = -1; save(); renderAll();
+  return syncNow();
+}
+// A spreadsheet loaded while on the team list is added to the sheet (leads already there are skipped).
+async function addFileToTeam(headers, rows, file) {
+  const team = S;
+  try {
+    load(headers, rows, file, false, true);           // build the list the usual way, without showing or saving it
+    const payload = S.res.map((_, i) => importPayload(i)), heads = S.headers;
+    S = team;
+    toast(`Adding ${payload.length.toLocaleString()} leads from ${file} to the team CRM…`);
+    let added = 0, skipped = 0;
+    for (let k = 0; k < payload.length; k += 200) {
+      const res = await crmPost('import', { headers: heads, contacts: payload.slice(k, k + 200) });
+      added += res.added; skipped += res.skipped;
+    }
+    toast(`Added ${added.toLocaleString()} new leads to the team CRM${skipped ? ` (${skipped.toLocaleString()} were already there)` : ''}`);
+    syncNow();
+  } catch (err) {
+    S = team; renderAll();
+    toast(err.message);
+  }
 }
 
 /* ---------- built-in calling (Twilio) ---------- */
@@ -1141,7 +1599,11 @@ function statusText(i) {
 }
 function chipFor(i) { return `<span class="chip ${statusTone(S.res[i].status)}">${esc(statusText(i))}</span>`; }
 
-function renderAll() { renderStats(); renderNotices(); renderWork(); renderQueue(); renderSettings(); }
+function renderAll() {
+  renderStats(); renderNotices(); renderTabs(); renderSettings(); renderSync();
+  $('dialerView').hidden = (S.view || 'dialer') !== 'dialer'; $('views').hidden = (S.view || 'dialer') === 'dialer';
+  if ((S.view || 'dialer') === 'dialer') { renderWork(); renderQueue(); } else { renderView(); renderQueue(); }
+}
 
 function renderStats() {
   const c = s => S.res.filter(r => s(r.status)).length;
@@ -1157,9 +1619,11 @@ function renderStats() {
   const workable = total - c(s => s === 'invalid');
   $('progress').style.width = workable ? ((workable - pending) / workable * 100) + '%' : '0';
   $('fileName').textContent = S.sample ? 'Sample list' : `${S.file} · ${total.toLocaleString()} contacts`;
+  $('fileName').title = teamOn() ? 'Shared with your team through the Google Sheet' : '';
 }
 function renderNotices() {
   const out = [];
+  const rb = reportBanner(); if (rb) out.push(rb);
   if (S.sample) out.push(`<div class="notice">This is a made-up sample list so you can try the buttons. Click <b>Load spreadsheet</b> or drop a CSV/Excel file anywhere on the page to use your own contacts.</div>`);
   if (S.settings.order === 'tz' && !S.tzNoticeSeen && S.rows.length && !S.sample) {
     let unclear = 0, unknown = 0;
@@ -1237,6 +1701,7 @@ function renderWork() {
       <button class="btn" data-act="skip">Skip contact</button>
       <button class="btn ghost" data-act="edit" style="margin-left:auto">Edit contact</button>
     </div>
+    ${crmPanel(i)}
     ${extra.length ? `<div style="display:grid;gap:6px"><span class="label">From your spreadsheet</span><dl class="details">${extra.map(([h, v]) => `<dt>${esc(h)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>` : ''}
   </div>`;
   renderPhase();
@@ -1266,16 +1731,25 @@ function renderPhase() {
 function renderQueue() {
   const f = $('filter').value;
   const test = filterNow().test, match = searchMatcher();
-  const keep = (s, i) => test(s) && match(i);
+  const keep = (s, i) => test(s, i) && match(i);
   const shown = S.res.reduce((n, r, i) => n + (keep(r.status, i) ? 1 : 0), 0);
   $('exportShownBtn').textContent = f === 'all' && !searchText.trim() ? `Export all (${shown.toLocaleString()})` : `Export these (${shown.toLocaleString()})`;
   $('exportShownBtn').disabled = !shown;
   const items = [], grouped = S.settings.order === 'tz';
   const counts = {};
-  if (grouped) S.res.forEach((r, i) => { if (keep(r.status, i)) { const k = zoneOf(i).k; counts[k] = (counts[k] || 0) + 1; } });
+  if (grouped) S.res.forEach((r, i) => { if (keep(r.status, i) && !isDue(r)) { const k = zoneOf(i).k; counts[k] = (counts[k] || 0) + 1; } });
   let lastZone = null;
+  const item = i => {
+    const r = S.res[i], nums = phonesOf(i);
+    const sub = (nums.length ? pretty(nums[0].num) + (nums.length > 1 ? ` +${nums.length - 1} more` : '') : 'No number') + (teamOn() && r.owner ? ` · ${r.owner}` : '');
+    const tag = isDue(r) ? '<span class="chip warn">Follow-up due</span>' : r.stage !== 'new' && r.stage !== 'contacted' && !OC[r.status] ? `<span class="chip">${esc(STAGE[r.stage].label)}</span>` : chipFor(i);
+    return `<li data-i="${i}" class="${i === S.cur ? 'cur' : ''}"><span class="n mono">${i + 1}</span><span style="min-width:0"><span class="nm">${esc(nameOf(i))}</span><span class="ph mono">${esc(sub)}</span></span>${tag}</li>`;
+  };
+  const due = S.res.map((r, i) => i).filter(i => isDue(S.res[i]) && keep(S.res[i].status, i)).sort((a, b) => Date.parse(S.res[a].fu.at) - Date.parse(S.res[b].fu.at));
+  if (due.length) items.push(`<li class="qgroup" style="color:var(--warn)"><span>Follow-ups due · ${due.length}</span><span></span></li>`, ...due.map(item));
+  const pinned = new Set(due);
   S.res.forEach((r, i) => {
-    if (!keep(r.status, i)) return;
+    if (!keep(r.status, i) || pinned.has(i)) return;
     if (grouped) {
       const z = ZONE_BY_KEY[zoneOf(i).k];
       if (z.k !== lastZone) {
@@ -1283,9 +1757,7 @@ function renderQueue() {
         items.push(`<li class="qgroup"><span>${esc(z.name)} · ${counts[z.k].toLocaleString()}</span><span>${z.tz ? esc(localTime(z.tz)) + ' there' : ''}</span></li>`);
       }
     }
-    const nums = phonesOf(i);
-    const sub = nums.length ? pretty(nums[0].num) + (nums.length > 1 ? ` +${nums.length - 1} more` : '') : 'No number';
-    items.push(`<li data-i="${i}" class="${i === S.cur ? 'cur' : ''}"><span class="n mono">${i + 1}</span><span style="min-width:0"><span class="nm">${esc(nameOf(i))}</span><span class="ph mono">${esc(sub)}</span></span>${chipFor(i)}</li>`);
+    items.push(item(i));
   });
   $('qlist').innerHTML = items.join('') || (searchText.trim()
     ? `<li style="cursor:default;display:block;color:var(--muted)">No contacts match "${esc(searchText.trim())}"${f !== 'all' ? ' in this filter' : ''}. <button class="btn ghost" data-act="clearSearch" style="padding:2px 10px">Clear search</button></li>`
@@ -1308,6 +1780,7 @@ function renderSettings() {
   $('twUrl').value = S.settings.twUrl; $('twPin').value = S.settings.twPin; $('twRing').value = S.settings.twRing;
   $('autoLog').checked = S.settings.autoLog;
   $('order').value = S.settings.order;
+  $('userName').value = S.settings.userName || ''; $('crmUrl').value = S.settings.crmUrl || ''; $('crmKey').value = S.settings.crmKey || '';
   $('autoHint').hidden = !tapToCall();
   $('twilioSet').hidden = !usingTwilio();
   $('schemeHint').textContent = usingTwilio()
@@ -1319,6 +1792,328 @@ function renderSettings() {
 let toastT, lastShown = -1;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2600); }
 
+/* ---------- CRM screens: tabs, contact panel, pipeline, follow-ups, report ---------- */
+const VIEWS = ['dialer', 'pipeline', 'followups', 'report'];
+function setView(v) {
+  if (!VIEWS.includes(v)) v = 'dialer';
+  S.view = v; save();
+  $('dialerView').hidden = v !== 'dialer';
+  $('views').hidden = v === 'dialer';
+  renderTabs();
+  if (v === 'dialer') { renderWork(); renderQueue(); } else renderView();
+  window.scrollTo(0, 0);
+}
+function renderTabs() {
+  const due = S.res.filter(r => isDue(r) && mineOrFree(r) && r.stage !== 'dead').length;
+  document.querySelectorAll('#tabs [data-view]').forEach(b => {
+    b.classList.toggle('on', b.dataset.view === (S.view || 'dialer'));
+    b.setAttribute('aria-selected', b.dataset.view === (S.view || 'dialer') ? 'true' : 'false');
+  });
+  $('fuBadge').textContent = due ? String(due) : '';
+  $('fuBadge').hidden = !due;
+}
+function renderView() {
+  const v = S.view;
+  if (v === 'pipeline') renderPipeline();
+  else if (v === 'followups') renderFollowups();
+  else if (v === 'report') renderReport();
+}
+function openContact(i) {
+  if (S.view !== 'dialer') { S.view = 'dialer'; $('dialerView').hidden = false; $('views').hidden = true; renderTabs(); }
+  jump(i);
+  window.scrollTo(0, 0);
+}
+const scopeOk = r => !teamOn() || S.scope !== 'mine' || r.owner === me();
+function scopeBar() {
+  if (!teamOn()) return '';
+  return `<div class="scope" role="group" aria-label="Whose leads">${[['all', 'Everyone'], ['mine', 'Mine']].map(([k, l]) =>
+    `<button class="btn${(S.scope || 'all') === k ? ' on' : ''}" data-scope="${k}">${l}</button>`).join('')}</div>`;
+}
+
+/* contact card: stage, follow-up, owner, deal, history */
+function crmPanel(i) {
+  const r = S.res[i];
+  const fu = r.fu && !r.fu.done ? r.fu : null;
+  const z = zoneOf(i), tz = zoneTz(z);
+  const there = fu && tz ? new Date(fu.at).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }) : '';
+  const due = fu && isDue(r);
+  const team = S.sync.team || [];
+  const owners = [...new Set([me(), ...team, r.owner].filter(Boolean))].sort();
+  const dealSum = [r.deal.requested && `${money(r.deal.requested)} requested`, r.deal.funded && `${money(r.deal.funded)} funded`].filter(Boolean).join(' · ');
+  const items = [
+    ...r.log.map(e => ({ at: e.at, user: e.user, text: `Called ${e.l || ''} ${pretty(e.n) || ''}: ${OC[e.k]?.label || e.k}`, note: e.note })),
+    ...r.hist.map(h => ({ at: h.at, user: h.user, text: h.type === 'Stage' ? `Stage: ${h.text}` : h.text, note: '', isNote: h.type === 'Note' })),
+  ].sort((a, b) => (a.at < b.at) - (a.at > b.at));
+  return `<section class="crm" aria-label="CRM">
+    <div class="crm-row"><span class="label">Stage</span>
+      <div class="stagebar">${STAGES.map(s => `<button class="stg${r.stage === s.k ? ' on' : ''}${s.k === 'dead' ? ' dead' : ''}" data-stage="${s.k}">${s.label}</button>`).join('')}</div></div>
+    <div class="crm-row"><span class="label">Follow-up</span>
+      <div class="fu-line${due ? ' due' : ''}">${fu
+        ? `<span><b>${esc(fuWhen(fu.at))}</b>${there ? ` <span class="muted">(${esc(there)} there)</span>` : ''}${due ? ' · <b>due now</b>' : ''}${fu.note ? ` · ${esc(fu.note)}` : ''}</span>
+           <button class="btn" data-act="fuEdit">Change</button><button class="btn" data-act="fuDone">Done</button>`
+        : `<button class="btn" data-act="fuEdit">+ Set follow-up</button>`}</div></div>
+    ${teamOn() ? `<div class="crm-row"><label class="label" for="ownerSel">Owner</label>
+      <select id="ownerSel"><option value="">Unassigned</option>${owners.map(n => `<option${n === r.owner ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></div>` : ''}
+    <details class="crm-sec" data-sec="deal"${S.open?.deal ? ' open' : ''}><summary>Deal${dealSum ? ` <span class="muted">· ${esc(dealSum)}</span>` : ''}</summary>
+      <div class="deal-grid">${DEAL_FIELDS.map(f => `<label class="field"><span class="label">${f.label}</span>
+        <input id="deal-${f.k}" data-deal="${f.k}" ${f.date ? 'type="date"' : f.money ? 'type="text" inputmode="decimal" placeholder="$"' : 'type="text"'}
+          value="${esc(f.money ? (r.deal[f.k] === '' || r.deal[f.k] == null ? '' : Number(r.deal[f.k]).toLocaleString('en-US')) : r.deal[f.k] ?? '')}"></label>`).join('')}</div>
+    </details>
+    <details class="crm-sec" data-sec="hist"${S.open?.hist ? ' open' : ''}><summary>History <span class="muted">· ${items.length}</span></summary>
+      <form class="addnote" id="noteForm"><input id="noteText" placeholder="Add a note to this contact's history…" autocomplete="off"><button class="btn" type="submit">Add note</button></form>
+      <ol class="timeline">${items.slice(0, 60).map(e => `<li><span class="when">${esc(new Date(e.at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }))}${teamOn() && e.user ? ` · ${esc(e.user)}` : ''}</span>
+        <span class="${e.isNote ? 'note' : ''}">${esc(e.text)}</span>${e.note ? `<span class="muted">“${esc(e.note)}”</span>` : ''}</li>`).join('') || '<li class="muted">Nothing yet.</li>'}</ol>
+    </details>
+  </section>`;
+}
+
+/* follow-up window (used by the card, the Follow-ups page and the Call back outcome) */
+let fuCtx = null;
+function openFollowUp(i, opts = {}) {
+  fuCtx = { id: S.res[i].id, then: opts.then || null };
+  const r = S.res[i], fu = r.fu && !r.fu.done ? r.fu : null;
+  $('fuTitle').textContent = opts.then ? `When should you call ${nameOf(i)} back?` : `Follow-up with ${nameOf(i)}`;
+  const d = fu ? new Date(fu.at) : quickTime('tomorrow10');
+  $('fuAt').value = localInput(d);
+  $('fuNote').value = fu ? fu.note : '';
+  $('fuRemove').hidden = !fu;
+  $('fuCancelBtn').textContent = opts.then ? 'Log without a follow-up' : 'Cancel';
+  fuThere();
+  $('fuDlg').showModal();
+}
+const localInput = d => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+function quickTime(k) {
+  const d = new Date();
+  if (k === '1h') { d.setMinutes(d.getMinutes() + 60); d.setMinutes(Math.ceil(d.getMinutes() / 5) * 5, 0, 0); return d; }
+  if (k === 'today4') { d.setHours(16, 0, 0, 0); return d; }
+  if (k === 'tomorrow10' || k === 'tomorrow2') { d.setDate(d.getDate() + 1); d.setHours(k === 'tomorrow10' ? 10 : 14, 0, 0, 0); return d; }
+  if (k === 'monday10') { d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); d.setHours(10, 0, 0, 0); return d; }
+  return d;
+}
+function fuThere() {
+  const k = fuCtx ? S.res.findIndex(r => r.id === fuCtx.id) : -1;
+  const v = $('fuAt').value;
+  if (k < 0 || !v) { $('fuThere').textContent = ''; return; }
+  const tz = zoneTz(zoneOf(k));
+  $('fuThere').textContent = tz ? `That's ${new Date(v).toLocaleString('en-US', { timeZone: tz, weekday: 'short', hour: 'numeric', minute: '2-digit' })} their time (${ZONE_BY_KEY[zoneOf(k).k].name}).` : '';
+}
+function saveFollowUp(e) {
+  e.preventDefault();
+  const k = S.res.findIndex(r => r.id === fuCtx?.id); if (k < 0) return;
+  const v = $('fuAt').value;
+  if (!v) { $('fuAt').focus(); return; }
+  setFollowUp(k, new Date(v).toISOString(), $('fuNote').value.trim());
+  const then = fuCtx.then; fuCtx = null; $('fuDlg').close();
+  save();
+  if (then) then(); else { renderAll(); toast(`Follow-up set for ${fuWhen(new Date(v).toISOString())}`); }
+}
+
+/* Pipeline */
+function renderPipeline() {
+  const by = Object.fromEntries(STAGES.map(s => [s.k, []]));
+  S.res.forEach((r, i) => { if (scopeOk(r)) by[r.stage].push(i); });
+  const sum = (list, f) => list.reduce((t, i) => t + (Number(S.res[i].deal[f]) || 0), 0);
+  const card = i => {
+    const r = S.res[i], fu = r.fu && !r.fu.done ? r.fu : null;
+    return `<li><button class="pcard" data-open="${i}">
+      <span class="nm">${esc(nameOf(i))}</span>${col(i, 'company') && col(i, 'company') !== nameOf(i) ? `<span class="muted">${esc(col(i, 'company'))}</span>` : ''}
+      <span class="pmeta">${r.deal.funded ? `<b>${money(r.deal.funded)}</b> funded` : r.deal.requested ? `<b>${money(r.deal.requested)}</b> requested` : ''}
+        ${fu ? `<span class="${isDue(r) ? 'due' : ''}">Follow-up ${esc(fuWhen(fu.at))}</span>` : ''}${teamOn() && r.owner ? `<span>${esc(r.owner)}</span>` : ''}</span></button>
+      <select class="pmove" data-move="${i}" aria-label="Move ${esc(nameOf(i))} to stage">${STAGES.map(s => `<option value="${s.k}"${s.k === r.stage ? ' selected' : ''}>${s.label}</option>`).join('')}</select></li>`;
+  };
+  const recent = i => S.res[i].hist.length ? S.res[i].hist[S.res[i].hist.length - 1].at : S.res[i].at || '';
+  $('views').innerHTML = `<div class="view-head"><h2>Pipeline</h2>${scopeBar()}
+      <p class="muted">${by.funded.length ? `${money(sum(by.funded, 'funded'))} funded · ` : ''}${money(sum([...by.appout, ...by.docs, ...by.submitted, ...by.approved], 'requested')) || '$0'} requested in open deals</p></div>
+    <div class="board">${STAGES.map(s => {
+      const list = by[s.k].slice().sort((a, b) => (recent(a) < recent(b)) - (recent(a) > recent(b)));
+      const total = s.k === 'funded' ? sum(list, 'funded') : sum(list, 'requested');
+      const many = s.k === 'new' || s.k === 'dead';
+      return `<section class="pcol ${s.k}"><header><b>${s.label}</b><span>${list.length.toLocaleString()}${total ? ` · ${money(total)}` : ''}</span></header>
+        ${many && list.length > 8
+          ? `<p class="muted">${list.length.toLocaleString()} ${s.k === 'new' ? 'leads not worked yet.' : 'closed leads.'}</p>${s.k === 'new' ? '<button class="btn" data-goview="dialer">Start calling</button>' : ''}<ul>${list.slice(0, 8).map(card).join('')}</ul>`
+          : `<ul>${list.slice(0, 150).map(card).join('') || '<li class="muted">None</li>'}</ul>${list.length > 150 ? `<p class="muted">+${(list.length - 150).toLocaleString()} more</p>` : ''}`}
+      </section>`;
+    }).join('')}</div>`;
+}
+
+/* Follow-ups */
+function renderFollowups() {
+  const now = Date.now(), today = dayOf(new Date().toISOString());
+  const tmr = dayOf(new Date(now + 864e5).toISOString()), week = now + 7 * 864e5;
+  const list = S.res.map((r, i) => i).filter(i => { const r = S.res[i]; return r.fu && !r.fu.done && r.fu.at && scopeOk(r) && r.stage !== 'dead'; })
+    .sort((a, b) => Date.parse(S.res[a].fu.at) - Date.parse(S.res[b].fu.at));
+  const groups = [['Overdue', i => Date.parse(S.res[i].fu.at) < now && dayOf(S.res[i].fu.at) < today],
+    ['Due now', i => Date.parse(S.res[i].fu.at) <= now && dayOf(S.res[i].fu.at) === today],
+    ['Later today', i => Date.parse(S.res[i].fu.at) > now && dayOf(S.res[i].fu.at) === today],
+    ['Tomorrow', i => dayOf(S.res[i].fu.at) === tmr], ['Next 7 days', i => dayOf(S.res[i].fu.at) > tmr && Date.parse(S.res[i].fu.at) <= week],
+    ['Later', i => Date.parse(S.res[i].fu.at) > week]];
+  const row = i => {
+    const r = S.res[i], tz = zoneTz(zoneOf(i));
+    const there = tz ? new Date(r.fu.at).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' }) : '';
+    return `<li class="furow${isDue(r) ? ' due' : ''}"><div><b>${esc(fuWhen(r.fu.at))}</b>${there ? ` <span class="muted">(${esc(there)} there)</span>` : ''}
+      <div><span class="nm">${esc(nameOf(i))}</span>${col(i, 'company') && col(i, 'company') !== nameOf(i) ? ` · <span class="muted">${esc(col(i, 'company'))}</span>` : ''}${teamOn() && r.owner ? ` · ${esc(r.owner)}` : ''}</div>
+      ${r.fu.note ? `<div class="muted">${esc(r.fu.note)}</div>` : ''}</div>
+      <div class="nav"><button class="btn primary" data-open="${i}">Open &amp; call</button><button class="btn" data-fudone="${i}">Done</button></div></li>`;
+  };
+  const used = new Set();
+  const notifyBtn = 'Notification' in window && Notification.permission === 'default'
+    ? '<button class="btn" data-act="notify">Turn on desktop reminders</button>' : '';
+  $('views').innerHTML = `<div class="view-head"><h2>Follow-ups</h2>${scopeBar()}${notifyBtn}
+      <p class="muted">Due follow-ups also go to the top of the call queue.</p></div>
+    ${list.length ? groups.map(([label, test]) => {
+      const items = list.filter(i => !used.has(i) && test(i)); items.forEach(i => used.add(i));
+      return items.length ? `<section class="fugroup"><h3>${label} <span class="muted">· ${items.length}</span></h3><ul class="fulist">${items.map(row).join('')}</ul></section>` : '';
+    }).join('') : '<p class="muted">No follow-ups scheduled. Set one from a contact, or log <b>Call back</b> and pick a time.</p>'}`;
+}
+
+/* Report (any day) */
+function reportData(day, who) {
+  const calls = [], moves = [], funded = [];
+  S.res.forEach((r, i) => {
+    r.log.forEach(e => { if (e.at && dayOf(e.at) === day && (!who || (e.user || me()) === who)) calls.push({ i, e }); });
+    r.hist.forEach(h => { if (h.type === 'Stage' && h.at && dayOf(h.at) === day && (!who || (h.user || me()) === who)) moves.push({ i, h }); });
+    if (r.deal.fundedOn === day && (!who || r.owner === who || !teamOn())) funded.push(i);
+  });
+  calls.sort((a, b) => (a.e.at > b.e.at) - (a.e.at < b.e.at));
+  return { calls, moves, funded };
+}
+function shiftDay(day, n) { const [y, m, d] = day.split('-').map(Number); return dayOf(new Date(y, m - 1, d + n, 12).toISOString()); }
+function niceDay(day) { const [y, m, d] = day.split('-').map(Number); return new Date(y, m - 1, d, 12).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' }); }
+function renderReport() {
+  const today = dayOf(new Date().toISOString());
+  const day = S.reportDay || today;
+  const who = teamOn() && S.scope === 'mine' ? me() : null;
+  const { calls, moves, funded } = reportData(day, who);
+  if (day <= today && (S.reportSeen || '') < day && (day < today || new Date().getHours() >= 17)) { S.reportSeen = day; save(); renderNotices(); }
+  const is = k => calls.filter(c => c.e.k === k);
+  const reached = calls.filter(c => c.e.k === 'connected' || c.e.k === 'appout');
+  const people = {};
+  calls.forEach(c => { const p = people[c.e.user || me()] ||= { calls: 0, reached: 0, appout: 0, callback: 0 };
+    p.calls++; if (c.e.k === 'connected' || c.e.k === 'appout') p.reached++; if (c.e.k === 'appout') p.appout++; if (c.e.k === 'callback') p.callback++; });
+  const contacts = new Set(calls.map(c => c.i)).size;
+  const fundedTotal = funded.reduce((t, i) => t + (Number(S.res[i].deal.funded) || 0), 0);
+  const time = iso => new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const table = (cols, rows) => rows.length ? `<div class="tablewrap"><table class="rtable"><thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${rows.map(r => `<tr>${r.map(v => `<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table></div>` : '<p class="muted">None.</p>';
+  const callRows = list => list.map(c => [time(c.e.at), `<button class="linkish" data-open="${c.i}">${esc(nameOf(c.i))}</button>`, esc(col(c.i, 'company')),
+    esc(pretty(c.e.n) || ''), ...(teamOn() ? [esc(c.e.user || '')] : []), esc(c.e.note || '')]);
+  const callCols = ['Time', 'Contact', 'Business', 'Number', ...(teamOn() ? ['By'] : []), 'Notes'];
+  const tmr = shiftDay(day, 1);
+  const dueNext = S.res.map((r, i) => i).filter(i => S.res[i].fu && !S.res[i].fu.done && dayOf(S.res[i].fu.at) === tmr && scopeOk(S.res[i]))
+    .sort((a, b) => Date.parse(S.res[a].fu.at) - Date.parse(S.res[b].fu.at));
+  $('views').innerHTML = `<div class="view-head"><h2>Call report</h2>${scopeBar()}
+      <div class="daynav"><button class="btn" data-day="-1" aria-label="Previous day">‹</button><b>${esc(niceDay(day))}</b>
+        <button class="btn" data-day="1" aria-label="Next day"${day >= today ? ' disabled' : ''}>›</button>${day !== today ? '<button class="btn ghost" data-day="0">Today</button>' : ''}</div>
+      <div class="nav"><button class="btn primary" data-act="reportXlsx"${calls.length ? '' : ' disabled'}>Save as Excel</button><button class="btn" data-act="reportShare"${calls.length ? '' : ' disabled'}>Share summary</button></div></div>
+    <div class="tiles">${[[calls.length, 'calls'], [contacts, 'contacts called'], [reached.length, 'connected'], [is('appout').length, 'App Outs'],
+      [is('callback').length, 'call backs'], [fundedTotal ? money(fundedTotal) : funded.length, 'funded']].map(([v, l]) => `<div class="tile"><b>${typeof v === 'number' ? v.toLocaleString() : v}</b><span>${l}</span></div>`).join('')}</div>
+    ${teamOn() && Object.keys(people).length ? `<h3>By person</h3>${table(['Person', 'Calls', 'Connected', 'App Outs', 'Call backs'], Object.keys(people).sort().map(n => [esc(n), people[n].calls, people[n].reached, people[n].appout, people[n].callback]))}` : ''}
+    <h3>App Outs</h3>${table(callCols, callRows(is('appout')))}
+    <h3>Connected</h3>${table(callCols, callRows(is('connected')))}
+    <h3>Call backs</h3>${table(callCols, callRows(is('callback')))}
+    ${funded.length ? `<h3>Funded</h3>${table(['Contact', 'Business', 'Funded', 'Lender'], funded.map(i => [`<button class="linkish" data-open="${i}">${esc(nameOf(i))}</button>`, esc(col(i, 'company')), money(S.res[i].deal.funded), esc(S.res[i].deal.lender || '')]))}` : ''}
+    ${moves.length ? `<h3>Stage changes</h3>${table(['Time', 'Contact', 'Change', ...(teamOn() ? ['By'] : [])], moves.map(m => [time(m.h.at), `<button class="linkish" data-open="${m.i}">${esc(nameOf(m.i))}</button>`, esc(m.h.text), ...(teamOn() ? [esc(m.h.user || '')] : [])]))}` : ''}
+    <h3>Follow-ups due ${day === today ? 'tomorrow' : 'the next day'}</h3>${table(['Time', 'Contact', 'Note'], dueNext.map(i => [esc(fuWhen(S.res[i].fu.at)), `<button class="linkish" data-open="${i}">${esc(nameOf(i))}</button>`, esc(S.res[i].fu.note || '')]))}
+    <details class="crm-sec"><summary>Every call that day <span class="muted">· ${calls.length}</span></summary>${table(['Time', 'Contact', 'Number', 'Outcome', ...(teamOn() ? ['By'] : []), 'Notes'],
+      calls.map(c => [time(c.e.at), `<button class="linkish" data-open="${c.i}">${esc(nameOf(c.i))}</button>`, esc(pretty(c.e.n) || ''), esc(OC[c.e.k]?.label || ''), ...(teamOn() ? [esc(c.e.user || '')] : []), esc(c.e.note || '')]))}</details>`;
+}
+function reportSummaryText(day) {
+  const who = teamOn() && S.scope === 'mine' ? me() : null;
+  const { calls, funded } = reportData(day, who);
+  const n = k => calls.filter(c => c.e.k === k).length;
+  const lines = [`Call report, ${niceDay(day)}${who ? ` (${who})` : ''}`,
+    `${calls.length} calls · ${n('connected') + n('appout')} connected · ${n('appout')} App Outs · ${n('callback')} call backs`];
+  const list = (title, k) => { const l = calls.filter(c => c.e.k === k); if (l.length) { lines.push('', title + ':'); l.forEach(c => lines.push(`- ${nameOf(c.i)}${col(c.i, 'company') ? ', ' + col(c.i, 'company') : ''}${c.e.note ? ': ' + c.e.note : ''}`)); } };
+  list('App Outs', 'appout'); list('Connected', 'connected'); list('Call backs', 'callback');
+  if (funded.length) { lines.push('', 'Funded:'); funded.forEach(i => lines.push(`- ${nameOf(i)}: ${money(S.res[i].deal.funded)}${S.res[i].deal.lender ? ' with ' + S.res[i].deal.lender : ''}`)); }
+  return lines.join('\n');
+}
+function reportExcel(day) {
+  const who = teamOn() && S.scope === 'mine' ? me() : null;
+  const { calls } = reportData(day, who);
+  const head = ['Time', ...(teamOn() ? ['By'] : []), 'Contact', 'Business', 'Number', 'Number Label', 'Outcome', 'Notes', 'Stage', ...(teamOn() ? ['Owner'] : [])];
+  const rows = calls.map(c => [stamp(c.e.at), ...(teamOn() ? [c.e.user || ''] : []), nameOf(c.i), col(c.i, 'company'), pretty(c.e.n) || '', c.e.l || '',
+    OC[c.e.k]?.label || '', c.e.note || '', STAGE[S.res[c.i].stage].label, ...(teamOn() ? [S.res[c.i].owner || ''] : [])]);
+  const sheet = XLSX.utils.aoa_to_sheet([head, ...rows]);
+  sheet['!cols'] = head.map(h => ({ wch: h === 'Notes' ? 48 : h === 'Contact' || h === 'Business' ? 26 : 14 }));
+  const sum = XLSX.utils.aoa_to_sheet(reportSummaryText(day).split('\n').map(l => [l]));
+  sum['!cols'] = [{ wch: 90 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, sum, 'Summary');
+  XLSX.utils.book_append_sheet(wb, sheet, 'Calls');
+  const type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  deliverFile(new Blob([XLSX.write(wb, { bookType: 'xlsx', type: 'array' })], { type }), `call-report-${day}.xlsx`, type);
+}
+async function reportShare(day) {
+  const text = reportSummaryText(day);
+  if (navigator.share && HANDHELD) { try { await navigator.share({ title: `Call report ${day}`, text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  try { await navigator.clipboard.writeText(text); toast('Report summary copied. Paste it into an email or text.'); }
+  catch (e) { location.href = `mailto:?subject=${encodeURIComponent(`Call report ${niceDay(day)}`)}&body=${encodeURIComponent(text)}`; }
+}
+// After 5pm (or the next time the dialer opens) a banner says the day's report is ready.
+function reportBanner() {
+  const now = new Date(), today = dayOf(now.toISOString());
+  let last = '';
+  S.res.forEach(r => r.log.forEach(e => { const d = e.at ? dayOf(e.at) : ''; if (d > last && (d < today || now.getHours() >= 17)) last = d; }));
+  if (!last || last <= (S.reportSeen || '')) return '';
+  const calls = reportData(last, null).calls;
+  const n = k => calls.filter(c => c.e.k === k).length;
+  return `<div class="notice report-ready"><b>${last === today ? "Today's" : niceDay(last) + "'s"} call report is ready:</b> ${calls.length} calls, ${n('connected') + n('appout')} connected, ${n('appout')} App Out${n('appout') === 1 ? '' : 's'}.
+    <button class="btn primary" data-report="${last}" style="padding:2px 12px;margin-left:4px">View report</button> <button class="btn ghost" data-dismissreport="${last}" style="padding:2px 10px">Dismiss</button></div>`;
+}
+
+/* team sync settings and status */
+function renderSync() {
+  const chip = $('syncChip'); if (!chip) return;
+  const st = S.sync || freshSync(), waiting = st.outbox ? st.outbox.length : 0;
+  chip.hidden = !teamOn();
+  if (teamOn()) {
+    const ago = st.lastOk ? Math.round((Date.now() - Date.parse(st.lastOk)) / 1000) : null;
+    chip.className = 'line-chip ' + (st.state === 'error' ? 'error' : st.state === 'ok' && !waiting ? 'ready' : '');
+    const off = navigator.onLine === false ? 'Offline' : 'Not synced';
+    chip.textContent = st.state === 'syncing' ? 'Syncing…' : st.state === 'error' ? (waiting ? `${off} · ${waiting} waiting` : off)
+      : waiting ? `${waiting} change${waiting > 1 ? 's' : ''} waiting` : 'Team synced';
+    chip.title = st.error || (ago != null ? `Last synced ${ago < 60 ? ago + ' seconds' : Math.round(ago / 60) + ' minutes'} ago` : '');
+  }
+  const s = $('crmStatus'); if (!s) return;
+  $('crmStop').hidden = !teamOn();
+  $('crmSyncNow').hidden = !teamOn();
+  if (teamOn()) s.textContent = st.error ? `Problem: ${st.error}` : `Syncing with the team sheet. ${waiting ? waiting + ' change(s) waiting to send.' : 'Everything is sent.'}${st.lastOk ? ' Last synced ' + new Date(st.lastOk).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) + '.' : ''}`;
+}
+async function crmConnect() {
+  const s = $('crmStatus'), choices = $('crmChoices');
+  choices.innerHTML = '';
+  if (!(S.settings.userName || '').trim()) { s.textContent = 'Enter your name first, so your teammates can see who made each call.'; $('userName').focus(); return; }
+  s.textContent = 'Connecting…';
+  try {
+    const p = await crmPost('ping');
+    const mine = S.sample ? 0 : S.rows.length;
+    s.textContent = `Connected to "${p.sheet}": ${p.contacts.toLocaleString()} contacts. The daily report goes to ${p.reportTo} at ${p.reportTime} (${p.timeZone}).`;
+    const btn = (act, label, primary) => `<button class="btn${primary ? ' primary' : ''}" data-crm="${act}">${label}</button>`;
+    if (teamOn()) { syncNow(); return; }
+    if (p.contacts === 0) choices.innerHTML = mine ? btn('upload', `Upload my list (${mine.toLocaleString()} contacts, with their call history)`, true) : btn('team', 'Start an empty team list', true);
+    else choices.innerHTML = btn('team', `Use the team list (${p.contacts.toLocaleString()} contacts)`, true) + (mine ? btn('merge', `Add my ${mine.toLocaleString()} contacts to it`) : '');
+  } catch (err) { s.textContent = err.message; }
+}
+async function crmChoice(kind) {
+  const s = $('crmStatus'), choices = $('crmChoices');
+  choices.innerHTML = '';
+  try {
+    if (kind === 'upload' || kind === 'merge') {
+      S.sync.mode = 'team-upload';
+      const res = await uploadList((done, total) => { s.textContent = `Uploading… ${done.toLocaleString()} of ${total.toLocaleString()}`; });
+      toast(`Uploaded ${res.added.toLocaleString()} contacts${res.skipped ? ` (${res.skipped.toLocaleString()} were already in the sheet)` : ''}`);
+    }
+    await useTeamList();
+    toast(`Synced ${S.rows.length.toLocaleString()} contacts from the team sheet`);
+  } catch (err) { S.sync.mode = 'off'; s.textContent = err.message; save(); }
+}
+function crmStop() {
+  S.sync = { ...freshSync(), mode: 'off' };
+  S.file = 'Team CRM (offline copy)';
+  save(); renderAll(); toast('Stopped syncing. This device keeps its own copy of the list.');
+}
+
 /* ---------- events ---------- */
 function afterMapChange() {
   phoneCache = new WeakMap(); zoneCache = new WeakMap(); hayCache = new WeakMap(); validate();
@@ -1328,7 +2123,20 @@ function afterMapChange() {
   save(); renderStats(); renderNotices(); renderWork(); renderQueue();
 }
 document.addEventListener('click', e => {
-  const oc = e.target.closest('[data-oc]'); if (oc) { logOutcome(oc.dataset.oc); return; }
+  const t = e.target;
+  const tab = t.closest('#tabs [data-view]'); if (tab) { setView(tab.dataset.view); return; }
+  const go = t.closest('[data-goview]'); if (go) { setView(go.dataset.goview); return; }
+  const st = t.closest('[data-stage]'); if (st && S.cur >= 0) { setStage(S.cur, st.dataset.stage); save(); renderWork(); renderQueue(); return; }
+  const op = t.closest('[data-open]'); if (op) { openContact(+op.dataset.open); return; }
+  const fd = t.closest('[data-fudone]'); if (fd) { finishFollowUp(+fd.dataset.fudone); save(); renderView(); renderTabs(); toast('Follow-up done'); return; }
+  const sc = t.closest('[data-scope]'); if (sc) { S.scope = sc.dataset.scope; save(); renderView(); return; }
+  const dy = t.closest('[data-day]'); if (dy) { const today = dayOf(new Date().toISOString()); S.reportDay = +dy.dataset.day === 0 ? today : shiftDay(S.reportDay || today, +dy.dataset.day); if (S.reportDay > today) S.reportDay = today; renderReport(); return; }
+  const rp = t.closest('[data-report]'); if (rp) { S.reportDay = rp.dataset.report; setView('report'); return; }
+  const dr = t.closest('[data-dismissreport]'); if (dr) { S.reportSeen = dr.dataset.dismissreport; save(); renderNotices(); return; }
+  const cr = t.closest('[data-crm]'); if (cr) { crmChoice(cr.dataset.crm); return; }
+  const fq = t.closest('[data-fuq]'); if (fq) { $('fuAt').value = localInput(quickTime(fq.dataset.fuq)); fuThere(); return; }
+  if (t.closest('#syncChip')) { syncNow(); return; }
+  const oc = t.closest('[data-oc]'); if (oc) { logOutcome(oc.dataset.oc); return; }
   const li = e.target.closest('#qlist li[data-i]'); if (li) { jump(+li.dataset.i); return; }
   const a = e.target.closest('[data-act]'); if (!a) return;
   const act = a.dataset.act, k = a.dataset.k !== undefined ? +a.dataset.k : undefined;
@@ -1342,6 +2150,13 @@ document.addEventListener('click', e => {
   else if (act === 'edit') openEditor(S.cur);
   else if (act === 'edCancel') $('editor').close();
   else if (act === 'dismissInfo') { S.loadInfo = null; save(); renderNotices(); }
+  else if (act === 'fuEdit' && S.cur >= 0) openFollowUp(S.cur);
+  else if (act === 'fuDone' && S.cur >= 0) { finishFollowUp(S.cur); save(); renderWork(); renderQueue(); renderTabs(); toast('Follow-up done'); }
+  else if (act === 'fuCancel') { const then = fuCtx?.then; fuCtx = null; $('fuDlg').close(); if (then) then(); }
+  else if (act === 'fuRemove') { const k = S.res.findIndex(r => r.id === fuCtx?.id); fuCtx = null; $('fuDlg').close(); if (k >= 0) { removeFollowUp(k); save(); renderAll(); toast('Follow-up removed'); } }
+  else if (act === 'notify') { Notification.requestPermission().then(() => renderView()); }
+  else if (act === 'reportXlsx') reportExcel(S.reportDay || dayOf(new Date().toISOString()));
+  else if (act === 'reportShare') reportShare(S.reportDay || dayOf(new Date().toISOString()));
   else if (act === 'find') { $('search').scrollIntoView({ block: 'center' }); $('search').focus(); }
   else if (act === 'clearSearch') { $('search').value = ''; searchText = ''; renderQueue(); $('search').focus(); }
   else if (act === 'dismissTz') { S.tzNoticeSeen = true; save(); renderNotices(); }
@@ -1355,8 +2170,18 @@ document.addEventListener('click', e => {
   }
 });
 document.addEventListener('input', e => {
-  if (e.target.id === 'notes' && S.cur >= 0) { S.res[S.cur].notes = e.target.value; saveSoon(); }
+  if (e.target.id === 'notes' && S.cur >= 0) { S.res[S.cur].notes = e.target.value; saveSoon(); notesChanged(S.cur); }
+  else if (e.target.id === 'fuAt') fuThere();
 });
+document.addEventListener('submit', e => {
+  if (e.target.id === 'noteForm') {
+    e.preventDefault();
+    if (S.cur >= 0 && $('noteText').value.trim()) { addNote(S.cur, $('noteText').value); S.open.hist = true; save(); renderWork(); toast('Note added'); }
+  } else if (e.target.id === 'fuForm') saveFollowUp(e);
+});
+// Remember which card sections (Deal, History) are open.
+document.addEventListener('toggle', e => { const d = e.target; if (d.matches && d.matches('details[data-sec]')) { S.open = S.open || {}; S.open[d.dataset.sec] = d.open; saveSoon(); } }, true);
+$('fuDlg').addEventListener('cancel', () => { fuCtx = null; });
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.dataset.phonecol !== undefined) {
@@ -1364,6 +2189,10 @@ document.addEventListener('change', e => {
     afterMapChange();
   }
   else if (t.dataset.map) { S.map[t.dataset.map] = +t.value; afterMapChange(); }
+  else if (t.dataset.deal && S.cur >= 0) { setDeal(S.cur, t.dataset.deal, t.value); save(); renderWork(); renderQueue(); }
+  else if (t.id === 'ownerSel' && S.cur >= 0) { setOwner(S.cur, t.value); save(); renderQueue(); toast(t.value ? `Assigned to ${t.value}` : 'Unassigned'); }
+  else if (t.dataset.move) { setStage(+t.dataset.move, t.value); save(); renderPipeline(); renderQueue(); toast(`Moved to ${STAGE[t.value].label}`); }
+  else if (['userName', 'crmUrl', 'crmKey'].includes(t.id)) { S.settings[t.id] = t.value.trim(); save(); }
   else if (t.id === 'filter') renderQueue();
   else if (t.id === 'order') {
     S.settings.order = t.value;
@@ -1385,7 +2214,8 @@ document.addEventListener('change', e => {
   }
 });
 document.addEventListener('keydown', e => {
-  if ($('editor').open || e.target.closest('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if ($('editor').open || $('fuDlg').open || e.target.closest('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if ((S.view || 'dialer') !== 'dialer') return;
   if (e.key === '/') { e.preventDefault(); $('search').focus(); return; }
   const k = e.key.toLowerCase();
   if (k === 'c') dial();
@@ -1396,6 +2226,7 @@ document.addEventListener('keydown', e => {
   else if (k === 'h') twHangup('hangup');
   else if (k === 'm') twMute();
   else if (k === 'e' && S.cur >= 0) openEditor(S.cur);
+  else if (k === 'f' && S.cur >= 0) openFollowUp(S.cur);
   else if (k === 'a') openEditor(-1);
   else return;
   e.preventDefault();
@@ -1412,6 +2243,9 @@ let searchT;
 $('search').addEventListener('input', e => { clearTimeout(searchT); searchT = setTimeout(() => { searchText = e.target.value; renderQueue(); }, 120); });
 $('search').addEventListener('keydown', e => { if (e.key === 'Escape') { e.target.value = ''; searchText = ''; renderQueue(); e.target.blur(); } });
 $('resetBtn').onclick = reset;
+$('crmConnect').onclick = () => { ['userName', 'crmUrl', 'crmKey'].forEach(id => { S.settings[id] = $(id).value.trim(); }); save(); crmConnect(); };
+$('crmSyncNow').onclick = () => syncNow();
+$('crmStop').onclick = crmStop;
 $('twConnect').onclick = () => twConnect().then(() => toast('Connected. Calls are ready.'), err => toast(err.message));
 ['dragenter', 'dragover'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); document.body.classList.add('drop-active'); }));
 ['dragleave', 'drop'].forEach(ev => document.addEventListener(ev, e => { e.preventDefault(); if (ev === 'drop' || !e.relatedTarget) document.body.classList.remove('drop-active'); }));
@@ -1425,16 +2259,40 @@ if (S) {
   if (!Array.isArray(S.map.phones)) S.map.phones = S.map.phone >= 0 ? [S.map.phone] : [];
   if (S.settings.combine === undefined) S.settings.combine = true;
   S.settings = { ...fresh().settings, ...S.settings };
+  S.sync = { ...freshSync(), ...(S.sync || {}) };
+  if (S.sync.mode === 'team-upload') S.sync.mode = 'off';
+  S.view ||= 'dialer'; S.open ||= {}; S.scope ||= 'all';
   S.curNum ||= 0; S.oncall = false;
   validate();
   if (S.map.state === undefined) { const d = detect(S.headers, S.rows); S.map.state = d.state; S.map.zip = d.zip; S.map.addr = d.addr; }
   S.res.forEach((r, i) => { if (r.src === undefined) r.src = i; });
-  if (S.sortedBy !== S.settings.order) { applyOrder(); S.cur = nextPending(-1); S.curNum = firstUntried(S.cur); save(); }
+  if (S.sortedBy !== S.settings.order) { applyOrder(); S.cur = nextPending(-1); S.curNum = firstUntried(S.cur); }
+  save();   // keeps what the upgrade filled in (stages, ids) even if nothing else changes
   renderAll();
 } else load(SAMPLE_HEADERS, SAMPLE_ROWS, 'sample', true);
 if (usingTwilio() && S.settings.twUrl && S.settings.twPin) twConnect().catch(() => {});
-// Keep the "time there" readings current.
-setInterval(() => { if (S.cur >= 0 && $('tzLine')) $('tzLine').innerHTML = tzLine(S.cur); }, 30000);
+// Keep the "time there" readings current, show follow-ups as they come due, and the 5pm report banner.
+const remindedFu = new Set();
+function tick() {
+  if (S.cur >= 0 && $('tzLine')) $('tzLine').innerHTML = tzLine(S.cur);
+  const now = Date.now(), fresh = [];
+  S.res.forEach((r, i) => { if (isDue(r, now) && mineOrFree(r) && r.stage !== 'dead' && !remindedFu.has(r.id + r.fu.at)) { remindedFu.add(r.id + r.fu.at); fresh.push(i); } });
+  if (fresh.length && !booting) {
+    toast(fresh.length === 1 ? `Follow-up due: ${nameOf(fresh[0])}` : `${fresh.length} follow-ups are due`);
+    if ('Notification' in window && Notification.permission === 'granted' && document.hidden)
+      try { new Notification('Follow-up due', { body: fresh.map(i => `${nameOf(i)}${S.res[i].fu.note ? ': ' + S.res[i].fu.note : ''}`).join('\n'), icon: 'icon-192.png' }); } catch (e) {}
+    if (S.view === 'dialer') renderQueue(); else if (S.view === 'followups') renderFollowups();
+  }
+  renderTabs(); renderNotices(); renderSync();
+}
+let booting = true;
+tick(); booting = false;
+setInterval(tick, 30000);
+setInterval(() => { if (teamOn() && !document.hidden) syncNow(); }, SYNC_EVERY);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && teamOn()) syncNow(); });
+window.addEventListener('online', () => { if (teamOn()) syncNow(); });
+if (teamOn()) syncNow();
+if ((S.view || 'dialer') !== 'dialer') setView(S.view);
 })();
 </script>
 </body>

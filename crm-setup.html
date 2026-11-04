@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Team CRM Setup</title>
+<meta name="description" content="Set up the Google Sheet behind the Call List Dialer's team CRM and 5pm email report.">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one reading column: key settings card, numbered steps, then reference sections. Code scrolls inside its own box. */
+:root {
+  --bg: #eef2f0; --surface: #ffffff; --sunk: #e4eae7; --ink: #15201c; --muted: #5a6a64; --line: #d3dcd8;
+  --accent: #1d6b57; --accent-ink: #ffffff; --accent-soft: #d6ebe3; --warn: #9a6200; --bad: #b0352b;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1513; --surface: #17201c; --sunk: #121a17; --ink: #e4ebe8; --muted: #91a29b; --line: #2a3632;
+  --accent: #4db08f; --accent-ink: #08130f; --accent-soft: #1d3a31; --warn: #e2a640; --bad: #ef7568; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f1513; --surface: #17201c; --sunk: #121a17; --ink: #e4ebe8; --muted: #91a29b; --line: #2a3632;
+  --accent: #4db08f; --accent-ink: #08130f; --accent-soft: #1d3a31; --warn: #e2a640; --bad: #ef7568; color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--f-body); }
+.wrap { max-width: 780px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; gap: 28px; }
+h1 { font: 600 clamp(28px, 5vw, 38px)/1.1 var(--f-display); margin: 0; text-wrap: balance; }
+h2 { font: 600 24px/1.2 var(--f-display); margin: 0; text-wrap: balance; }
+h3 { font-size: 17px; margin: 0; }
+p { margin: 0; }
+a { color: var(--accent); }
+.lede { color: var(--muted); font-size: 17px; max-width: 62ch; }
+section { display: grid; gap: 14px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; display: grid; gap: 12px; }
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.fact b { display: block; font: 500 20px var(--f-mono); }
+.fact span { font-size: 13px; color: var(--muted); }
+ol.steps { list-style: none; counter-reset: step; margin: 0; padding: 0; display: grid; gap: 14px; }
+ol.steps > li { counter-increment: step; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px 18px 64px; position: relative; display: grid; gap: 10px; min-width: 0; }
+ol.steps > li::before { content: counter(step); position: absolute; left: 18px; top: 16px; width: 32px; height: 32px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font: 600 16px/32px var(--f-mono); text-align: center; }
+ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.path { font-family: var(--f-mono); font-size: 14px; background: var(--sunk); border-radius: 4px; padding: 1px 6px; }
+kbd, code { font-family: var(--f-mono); font-size: 14px; background: var(--sunk); border-radius: 4px; padding: 1px 5px; }
+.code { position: relative; min-width: 0; }
+.code pre { margin: 0; background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; padding: 14px; overflow-x: auto; font: 13px/1.5 var(--f-mono); max-height: 320px; }
+.codebar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 6px 14px; border-radius: 6px; font: 500 14px var(--f-body); cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+td code { white-space: nowrap; }
+.pin { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pin output { font: 500 18px var(--f-mono); background: var(--sunk); padding: 6px 12px; border-radius: 6px; letter-spacing: .04em; overflow-wrap: anywhere; }
+.note { border-left: 4px solid var(--warn); background: var(--surface); padding: 12px 16px; border-radius: 0 8px 8px 0; }
+.vis { font: 600 12px var(--f-mono); padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.vis.pub { color: var(--accent); } .vis.pro { color: var(--warn); }
+.back { font-size: 15px; }
+.muted { color: var(--muted); }
+small { font-size: 13px; }
+.field { display: grid; gap: 4px; }
+.label { font-size: 13px; font-weight: 600; color: var(--muted); }
+input[type=text] { font: 15px var(--f-body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; min-width: 0; }
+input[type=text]:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+details.mini summary { cursor: pointer; color: var(--accent); font-size: 14px; }
+details.mini[open] summary { margin-bottom: 8px; }
+th[scope=row] { width: 40%; text-transform: none; letter-spacing: 0; font-size: 14px; }
+ol.steps > li > ul { gap: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="./">← Back to the dialer</a>
+  <header style="display:grid;gap:12px">
+    <h1>Set up the team CRM and 5pm report</h1>
+    <p class="lede">After this, everyone on your team works from one shared list of leads kept in a Google Sheet you own, and the day's call report arrives by email at 5pm. It takes about 15 minutes, done once on a computer.</p>
+  </header>
+
+  <section>
+    <h2>How it works</h2>
+    <div class="card">
+      <p>The Google Sheet holds your contacts, every call and change, and a log of the daily reports. A short script inside the Sheet, called Apps Script, answers the dialers and sends the email. Each person's dialer keeps a copy of the list, so calling still works with a weak signal. Changes travel to the Sheet within a couple of seconds and show up on your teammates' screens within 30 seconds.</p>
+      <div class="facts">
+        <div class="fact"><b>Free</b><span>runs in your own Google account</span></div>
+        <div class="fact"><b>3 tabs</b><span>Contacts, Activity, Daily Reports</span></div>
+        <div class="fact"><b>5:00 PM</b><span>daily email, on days with calls</span></div>
+      </div>
+      <p style="font-size:14px;color:var(--muted)">Teammates don't need a Google account or access to the Sheet. They connect through the script with a team key.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Before you start</h2>
+    <div class="card">
+      <h3>Your team key</h3>
+      <p>Everyone types this into their dialer. It's what keeps other people out of your list, so share it only with your team.</p>
+      <div class="pin"><output id="keyOut">—</output><button class="btn" id="keyNew" type="button">Make a new key</button><button class="btn" id="keyCopy" type="button">Copy</button></div>
+      <details class="mini"><summary>Already set up? Use your existing key</summary>
+        <label class="field"><span class="label">Existing team key</span><input id="keyOwn" type="text" autocomplete="off" spellcheck="false" placeholder="Paste the key your team already uses"></label></details>
+      <small class="muted">Save the key somewhere safe, such as a password manager. It is made in this browser and isn't sent anywhere.</small>
+      <h3 style="margin-top:8px">Who gets the 5pm email</h3>
+      <label class="field"><span class="label">Email addresses (optional)</span>
+        <input id="mailTo" type="text" inputmode="email" autocomplete="off" spellcheck="false" placeholder="Leave blank to send it to the account that runs the script">
+        <small class="muted">Separate several addresses with commas. They go into the script code below.</small></label>
+    </div>
+  </section>
+
+  <section>
+    <h2>Steps</h2>
+    <ol class="steps">
+      <li>
+        <h3>Make the Google Sheet</h3>
+        <p>Sign in to the Google account that should own the lead data, such as your work Google account. Open <a href="https://sheets.new" target="_blank" rel="noopener">sheets.new</a> to create an empty spreadsheet and name it <code>Call List CRM</code>.</p>
+      </li>
+      <li>
+        <h3>Paste the script</h3>
+        <p>In the Sheet, choose <span class="path">Extensions → Apps Script</span>. Delete the sample code in <code>Code.gs</code>, paste the code below, and click the <b>Save</b> icon. Name the project <code>Call List CRM</code> when asked.</p>
+        <div class="code">
+          <div class="codebar"><span id="codeState" class="muted">Your team key is already filled in.</span><button class="btn primary" type="button" id="codeCopy">Copy code</button></div>
+          <pre id="code">Loading…</pre>
+        </div>
+      </li>
+      <li>
+        <h3>Check the time zone</h3>
+        <p>In Apps Script, click <span class="path">Project Settings</span> (the gear on the left) and set <b>Time zone</b> to your own, such as <i>Eastern Time</i>. The 5pm email and the "today" in each report follow this setting.</p>
+        <p class="muted" style="font-size:14px">If there's no Time zone option, tick <b>Show "appsscript.json" manifest file in editor</b>, open <code>appsscript.json</code> from the file list, and change the <code>"timeZone"</code> value, for example to <code>"America/New_York"</code>. Then save.</p>
+        <p>In the Sheet itself, set the same zone under <span class="path">File → Settings → Time zone</span> so the times in the Activity tab read correctly.</p>
+      </li>
+      <li>
+        <h3>Run setUp once</h3>
+        <p>Back in the Apps Script editor, pick <code>setUp</code> in the function menu next to <b>Run</b>, then click <b>Run</b>. Google asks for permission:</p>
+        <ul>
+          <li>Click <b>Review permissions</b> and choose your account.</li>
+          <li>Google shows <b>"Google hasn't verified this app"</b>. This appears for any script you write yourself. Click <b>Advanced</b>, then <b>Go to Call List CRM (unsafe)</b>.</li>
+          <li>Click <b>Allow</b>. The script asks to edit this spreadsheet, send email as you (for the report), and run on a schedule.</li>
+        </ul>
+        <p>When the log says "Execution completed", the Sheet has three new tabs and you'll get a "Your Call List CRM is set up" email.</p>
+      </li>
+      <li>
+        <h3>Deploy it as a web app</h3>
+        <p>Click <span class="path">Deploy → New deployment</span>. Click the gear next to <b>Select type</b> and choose <b>Web app</b>. Set:</p>
+        <div class="tablewrap"><table>
+          <tbody>
+            <tr><th scope="row">Description</th><td><code>Dialer</code></td></tr>
+            <tr><th scope="row">Execute as</th><td><b>Me</b></td></tr>
+            <tr><th scope="row">Who has access</th><td><b>Anyone</b></td></tr>
+          </tbody>
+        </table></div>
+        <p>Click <b>Deploy</b>, then copy the <b>Web app URL</b>. It starts with <code>https://script.google.com/macros/s/</code> and ends with <code>/exec</code>.</p>
+        <p class="muted" style="font-size:14px">"Anyone" is needed because the dialer doesn't sign in to Google. Nobody can read or change the list without the team key.</p>
+      </li>
+      <li>
+        <h3>Connect your dialer</h3>
+        <p>Open <a href="./">the dialer</a>, open <b>Columns &amp; dialing settings</b>, and scroll to <b>Team CRM and 5pm email report</b>. Enter your name, the web app address and the team key, then click <b>Connect</b>.</p>
+        <p>The first person to connect chooses <b>Upload my list</b>. This copies the contacts already in your dialer into the Sheet, with every call, note and outcome so far. It takes under a minute for a few hundred leads.</p>
+      </li>
+      <li>
+        <h3>Add your teammates</h3>
+        <p>Send each teammate the dialer link, the web app address, and the team key, in a private message rather than a group channel. On their phone or computer they open the dialer, enter <b>their own name</b>, the address and the key, click <b>Connect</b>, and choose <b>Use the team list</b>.</p>
+        <p>If they already have leads loaded that aren't on the team list, they can choose <b>Add my contacts to it</b> instead. Leads already in the Sheet are skipped: a lead counts as already there when any of its phone numbers, or its name and business together, match one in the Sheet.</p>
+      </li>
+      <li>
+        <h3>Send a test report</h3>
+        <p>Make a test call, then in Apps Script pick <code>sendReportNow</code> next to <b>Run</b> and click <b>Run</b>. Today's report arrives within a minute. From now on it comes by itself between 5:00 and about 5:15pm, as Google runs scheduled scripts within a 15-minute window.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>How the team list works</h2>
+    <div class="card">
+      <ul>
+        <li><b>The first call claims a lead.</b> Whoever calls a new lead first becomes its owner, and other people's dialers skip it. Change the owner on the contact's card, or use the <b>Mine</b> and <b>Unassigned</b> filters.</li>
+        <li><b>Follow-ups come first.</b> When one of your follow-ups is due, the dialer puts that lead at the front of your queue.</li>
+        <li><b>The top bar shows sync status.</b> "Team synced" means everything is sent. Tap it to sync right away. Offline, it shows how many changes are waiting, and they send by themselves when you're back online.</li>
+        <li><b>Nothing jumps while you work.</b> Updates never replace notes you're typing or the contact you're on a call with. If a teammate claims the lead on your screen before you call, the dialer moves you to the next one.</li>
+        <li><b>You can edit the Sheet directly.</b> Change Stage, Owner, follow-up or deal columns in the Contacts tab, and the dialers pick it up on their next sync. Don't rename or move the first 22 columns, and to remove a contact, delete it in the dialer or type <code>TRUE</code> in its <b>Deleted</b> cell instead of deleting the row.</li>
+        <li><b>Loading another spreadsheet adds to the team list.</b> While connected, <b>Load spreadsheet</b> sends new leads to the Sheet and skips ones already there.</li>
+        <li><b>The 5pm email</b> covers calls by person, App Outs, connected calls, call backs, deals funded, stage changes, tomorrow's follow-ups and the pipeline, with every call attached as a spreadsheet. A copy of each day's numbers goes in the Daily Reports tab. The dialer's <b>Report</b> tab shows the same report for any day.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Keep the lead data safe</h2>
+    <div class="note">
+      <p>Everything in your lead spreadsheet goes into the Google Sheet, including columns like date of birth and masked SSN or EIN. Share the Sheet itself only with people who need it; teammates using the dialer don't need access to it. If someone leaves the team, make a new key on this page, paste the new code, deploy a new version (below), and give the new key to everyone who stays.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Updating the script later</h2>
+    <div class="card">
+      <p>If the dialer gets a new version of this script, reload this page, use <b>Already set up? Use your existing key</b> so the key stays the same, and copy the code again. In Apps Script, paste it over the old code and save. Then:</p>
+      <ul>
+        <li>Click <span class="path">Deploy → Manage deployments</span>, click the pencil icon, set <b>Version</b> to <b>New version</b>, and click <b>Deploy</b>. The web app address stays the same, so nobody has to reconnect.</li>
+        <li>If you changed the time zone or the report time, run <code>setUp</code> again so the 5pm schedule is rebuilt.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>If something goes wrong</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>What you see</th><th>What to do</th></tr></thead>
+      <tbody>
+        <tr><td>"Wrong team key."</td><td>The key in the dialer must match <code>TEAM_KEY</code> at the top of the script exactly. If you changed the script, deploy a new version.</td></tr>
+        <tr><td>"Set TEAM_KEY at the top of the Apps Script code"</td><td>The script was pasted without a key. Copy the code from this page again (the key is filled in), save, and deploy a new version.</td></tr>
+        <tr><td>"Could not reach your Google Sheet"</td><td>Check the address ends in <code>/exec</code>, not <code>/dev</code>. In <span class="path">Deploy → Manage deployments</span>, check <b>Who has access</b> is <b>Anyone</b>.</td></tr>
+        <tr><td>"Google didn't answer like the Call List CRM"</td><td>Usually Google sent a sign-in page instead. <b>Who has access</b> must be <b>Anyone</b>, not "Anyone with Google account". If your work account doesn't offer "Anyone", your Google admin restricts it; use a personal Google account or ask the admin.</td></tr>
+        <tr><td>No email at 5pm</td><td>No email is sent on days without calls or changes. Check your spam folder. In Apps Script, the <b>Triggers</b> page (clock icon) should list <code>sendDailyReport</code>; if not, run <code>setUp</code> again.</td></tr>
+        <tr><td>The email comes at the wrong hour, or calls land on the wrong day</td><td>Fix the time zone (step 3), then run <code>setUp</code> again.</td></tr>
+        <tr><td>"This app is blocked" when running setUp</td><td>Your Google Workspace admin blocks scripts that Google hasn't reviewed. Use a personal Google account for the Sheet, or ask the admin to allow it.</td></tr>
+        <tr><td>A teammate's changes don't show</td><td>Tap the sync status in the top bar on both devices. If one says "Not synced", tap it to see the reason.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+</div>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const makeKey = () => Array.from(crypto.getRandomValues(new Uint8Array(24)), b => ALPHA[b % ALPHA.length]).join('').match(/.{1,6}/g).join('-');
+  const lit = s => s.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/[\r\n]/g, '');
+  let source = '', made = makeKey();
+
+  const key = () => $('keyOwn').value.trim() || made;
+  function render() {
+    $('keyOut').textContent = key();
+    if (!source) return;
+    const to = $('mailTo').value.split(/[,;\s]+/).filter(Boolean).join(', ');
+    $('code').textContent = source
+      .replace("const TEAM_KEY = 'PASTE-YOUR-TEAM-KEY-HERE';", () => `const TEAM_KEY = '${lit(key())}';`)
+      .replace("const REPORT_TO = '';", () => `const REPORT_TO = '${lit(to)}';`);
+    $('codeState').textContent = to ? 'Your team key and email addresses are filled in.' : 'Your team key is already filled in.';
+  }
+  fetch('google/Code.gs', { cache: 'no-cache' }).then(r => r.ok ? r.text() : Promise.reject())
+    .then(t => { source = t; render(); })
+    .catch(() => { $('code').innerHTML = 'Couldn\'t load the code here. Open <a href="google/Code.gs">google/Code.gs</a>, then replace <code>PASTE-YOUR-TEAM-KEY-HERE</code> with your team key.'; });
+
+  // Copies to the clipboard; where that's not allowed, selects the text so Ctrl+C works.
+  function copy(el, btn) {
+    const label = btn.textContent, flash = t => { btn.textContent = t; setTimeout(() => { btn.textContent = label; }, 2000); };
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); flash('Press Ctrl+C'); };
+    if (navigator.clipboard) navigator.clipboard.writeText(el.textContent).then(() => flash('Copied'), fallback); else fallback();
+  }
+  $('keyNew').onclick = () => { made = makeKey(); $('keyOwn').value = ''; render(); };
+  $('keyCopy').onclick = e => copy($('keyOut'), e.target);
+  $('codeCopy').onclick = e => { if (source) copy($('code'), e.target); };
+  $('keyOwn').oninput = render;
+  $('mailTo').oninput = render;
+  render();
+})();
+</script>
+</body>
+</html>

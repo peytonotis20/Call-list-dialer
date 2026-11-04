@@ -1,6 +1,7 @@
-// Offline support: the app page loads fresh when online (so updates show up right away)
-// and falls back to the cached copy when offline. Other files are served from cache.
-const CACHE = 'call-list-dialer-v2';
+// Offline support: pages and code load fresh when online (so updates show up right away)
+// and fall back to the cached copy when offline. Libraries and icons are served from cache.
+const CACHE = 'call-list-dialer-v3';
+const STATIC = /\.(png|webmanifest)$|\/(xlsx\.full|twilio)\.min\.js$/;
 const FILES = ['./', 'index.html', 'xlsx.full.min.js', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -17,7 +18,9 @@ self.addEventListener('fetch', e => {
   });
   if (e.request.mode === 'navigate') {
     e.respondWith(fromNet().catch(() => caches.match(e.request).then(hit => hit || caches.match('index.html'))));
-  } else {
+  } else if (STATIC.test(new URL(e.request.url).pathname)) {
     e.respondWith(caches.match(e.request).then(hit => hit || fromNet()));
+  } else {
+    e.respondWith(fromNet().catch(() => caches.match(e.request)));
   }
 });
