@@ -121,7 +121,9 @@ ol.steps > li > ul { gap: 6px; }
       </li>
       <li>
         <h3>Paste the script</h3>
-        <p>In the Sheet, choose <span class="path">Extensions → Apps Script</span>. Delete the sample code in <code>Code.gs</code>, paste the code below, and click the <b>Save</b> icon. Name the project <code>Call List CRM</code> when asked.</p>
+        <p>In the Sheet's menu bar, choose <span class="path">Extensions → Apps Script</span>. A new tab opens with a code editor showing a few lines that start with <code>function myFunction()</code>. Click in that code, press <kbd>Ctrl</kbd>+<kbd>A</kbd> (<kbd>⌘</kbd>+<kbd>A</kbd> on a Mac) and <kbd>Delete</kbd> so the editor is empty.</p>
+        <p>Click <b>Copy code</b> below, go back to the Apps Script tab, click in the empty editor and press <kbd>Ctrl</kbd>+<kbd>V</kbd> (<kbd>⌘</kbd>+<kbd>V</kbd>). Click the <b>Save</b> icon (a floppy disk, above the code). Then click <b>Untitled project</b> at the top left and rename it <code>Call List CRM</code>.</p>
+        <p class="muted" style="font-size:14px">Check line 11 says <code>const TEAM_KEY = '…'</code> with your key from above, not <code>PASTE-YOUR-TEAM-KEY-HERE</code>. Keep this page open until you've saved the key: reloading the page makes a new one. You can always find the key again on line 11 of the script.</p>
         <div class="code">
           <div class="codebar"><span id="codeState" class="muted">Your team key is already filled in.</span><button class="btn primary" type="button" id="codeCopy">Copy code</button></div>
           <pre id="code">Loading…</pre>
